@@ -65,8 +65,16 @@ use TokenKind::*;
 impl Token {
   pub fn dbg(&self) -> String {
     let prefix = match self.kind {
+      Semi => "SEMICOLON ;",
+      WhiteSpace => "WHITESPACE ",
+
       OpenParen => "LEFT_PAREN (",
       CloseParen => "RIGHT_PAREN )",
+      OpenBrace => "LEFT_BRACE {",
+      CloseBrace => "RIGHT_BRACE }",
+      OpenBracket => "LEFT_BRACKET [",
+      CloseBracket => "RIGHT_BRACKET ]",
+
       Eof => "EOF ",
       _ => "UNKNOWN ",
     };
