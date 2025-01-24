@@ -401,7 +401,10 @@ impl TokenKind {
 
 impl Token {
   pub fn is_err(&self) -> bool {
-    matches!(self.kind, UnexpectedCharacter { .. })
+    matches!(
+      self.kind,
+      UnexpectedCharacter { .. } | UnterminatedString { .. }
+    )
   }
 
   pub fn try_get_line(&self) -> Option<u32> {
