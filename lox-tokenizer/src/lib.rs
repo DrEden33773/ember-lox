@@ -306,7 +306,7 @@ impl Token {
 
   pub fn dbg(&self) -> String {
     if let Unknown { ch, line } = self.kind {
-      return format!("[line {}] Error: Unexpected Character: {}", line, ch);
+      return format!("[line {}] Error: Unexpected character: {}", line, ch);
     }
 
     let prefix = match self.kind {
