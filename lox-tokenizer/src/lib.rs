@@ -17,17 +17,20 @@ pub mod prelude {
 #[derive(Debug)]
 pub struct Token {
   pub kind: TokenKind,
-  pub line: u32,
+  pub len: u32,
 }
 
 impl Token {
-  pub fn new(kind: TokenKind, line: u32) -> Self {
-    Self { kind, line }
+  pub fn new(kind: TokenKind, len: u32) -> Self {
+    Self { kind, len }
   }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
+  /// A line comment, e.g. `// comment`.
+  LineComment,
+
   /// Any whitespace character sequence
   WhiteSpace,
 
@@ -53,6 +56,24 @@ pub enum TokenKind {
   /// `]`
   CloseBracket,
 
+  /// `=`
+  Eq,
+  /// `!`
+  Bang,
+  /// `<`
+  Lt,
+  /// `>`
+  Gt,
+
+  /// `-`
+  Minus,
+  /// `+`
+  Plus,
+  /// `*`
+  Star,
+  /// `/`
+  Slash,
+
   /// Unknown token, not expected by the lexer, e.g. "№"
   Unknown,
 
@@ -65,8 +86,8 @@ use TokenKind::*;
 impl Token {
   pub fn dbg(&self) -> String {
     let prefix = match self.kind {
-      Semi => "SEMICOLON ;",
       WhiteSpace => "WHITESPACE ",
+      LineComment => "LINE_COMMENT //",
 
       OpenParen => "LEFT_PAREN (",
       CloseParen => "RIGHT_PAREN )",
@@ -74,6 +95,15 @@ impl Token {
       CloseBrace => "RIGHT_BRACE }",
       OpenBracket => "LEFT_BRACKET [",
       CloseBracket => "RIGHT_BRACKET ]",
+
+      Semi => "SEMICOLON ;",
+      Dot => "DOT .",
+      Comma => "COMMA ,",
+
+      Minus => "MINUS -",
+      Plus => "PLUS +",
+      Star => "STAR *",
+      Slash => "SLASH /",
 
       Eof => "EOF ",
       _ => "UNKNOWN ",
@@ -100,8 +130,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
 /// Same with [tokenize], but produces an `EOF` token at the end.
 #[cfg(feature = "debug_assertions")]
 pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> + '_ {
-  // Note that EOF's line number is always 0
-  // (since we could infer that from the last non-EOF token).
+  // Note that EOF's length is always 0
   tokenize(input).chain(std::iter::once(Token::new(TokenKind::Eof, 0)))
 }
 
@@ -143,7 +172,11 @@ impl Cursor<'_> {
     };
 
     let token_kind = match first_char {
-      // One-symbol tokens.
+      '/' => match self.first() {
+        '/' => self.line_comment(),
+        _ => Slash,
+      },
+
       ';' => Semi,
       ',' => Comma,
       '.' => Dot,
@@ -154,11 +187,23 @@ impl Cursor<'_> {
       '[' => OpenBracket,
       ']' => CloseBracket,
 
+      '-' => Minus,
+      '+' => Plus,
+      '*' => Star,
+
       _ => Unknown,
     };
     let res = Token::new(token_kind, self.pos_within_token());
     // Remember to reset the consumed bytes length!
     self.reset_pos_within_token();
     res
+  }
+
+  fn line_comment(&mut self) -> TokenKind {
+    debug_assert!(self.prev() == '/' && self.first() == '/');
+    self.bump(); // Eat `/`.
+
+    self.eat_while(|c| c != '\n');
+    LineComment
   }
 }
