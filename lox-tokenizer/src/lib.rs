@@ -11,7 +11,7 @@ pub mod cursor;
 pub use cursor::Cursor;
 
 pub mod prelude {
-  pub use super::{Token, TokenKind, tokenize, tokenize_with_eof};
+  pub use super::{tokenize, tokenize_with_eof, Token, TokenKind};
 }
 
 #[derive(Debug)]
@@ -77,7 +77,7 @@ impl Token {
 /// Creates an iterator that produces tokens from the input string.
 ///
 /// Note that `EOF` won't be produced by this iterator.
-pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
+pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
   let mut cursor = Cursor::new(input);
   std::iter::from_fn(move || {
     let token = cursor.advance_token();
@@ -91,7 +91,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 
 /// Same with [tokenize], but produces an `EOF` token at the end.
 #[cfg(feature = "debug_assertions")]
-pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> {
+pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> + '_ {
   // Note that EOF's line number is always 0
   // (since we could infer that from the last non-EOF token).
   tokenize(input).chain(std::iter::once(Token::new(TokenKind::Eof, 0)))
