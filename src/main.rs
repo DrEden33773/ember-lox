@@ -30,6 +30,7 @@ fn main() {
         }
       }
       tokenizer_errors.sort_by_cached_key(|t| t.try_get_line().unwrap_or_default());
+      let exit_code = if tokenizer_errors.is_empty() { 0 } else { 65 };
 
       for error in tokenizer_errors {
         eprintln!("{}", error.dbg());
@@ -40,6 +41,8 @@ fn main() {
           println!("{}", info);
         }
       }
+
+      std::process::exit(exit_code);
     }
     _ => {
       eprintln!("Unknown command: {}", command);
