@@ -7,5 +7,4 @@ edition = "2021"
 
 
 [features]
-default = ["debug_assertions"]
-debug_assertions = []
+default = []

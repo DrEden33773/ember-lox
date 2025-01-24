@@ -12,8 +12,9 @@ pub struct Cursor<'a> {
   len_remaining: usize,
   /// Iterator over chars. Slightly faster than a &str.
   chars: Chars<'a>,
-  #[cfg(feature = "debug_assertions")]
+  #[cfg(debug_assertions)]
   prev: char,
+  line: u32,
 }
 
 pub(crate) const EOF_CHAR: char = '\0';
@@ -23,8 +24,9 @@ impl<'a> Cursor<'a> {
     Cursor {
       len_remaining: input.len(),
       chars: input.chars(),
-      #[cfg(feature = "debug_assertions")]
+      #[cfg(debug_assertions)]
       prev: EOF_CHAR,
+      line: 1,
     }
   }
 
@@ -35,7 +37,7 @@ impl<'a> Cursor<'a> {
   /// Returns the last eaten symbol (or `'\0'` in release builds).
   /// (For debug assertions only.)
   pub fn prev(&self) -> char {
-    if cfg!(feature = "debug_assertions") {
+    if cfg!(debug_assertions) {
       self.prev
     } else {
       EOF_CHAR
@@ -87,7 +89,7 @@ impl<'a> Cursor<'a> {
   pub fn bump(&mut self) -> Option<char> {
     let c = self.chars.next()?;
 
-    if cfg!(feature = "debug_assertions") {
+    if cfg!(debug_assertions) {
       self.prev = c;
     }
 
@@ -99,5 +101,13 @@ impl<'a> Cursor<'a> {
     while predicate(self.first()) && !self.is_eof() {
       self.bump();
     }
+  }
+
+  pub fn line(&self) -> u32 {
+    self.line
+  }
+
+  pub fn line_mut(&mut self) -> &mut u32 {
+    &mut self.line
   }
 }
