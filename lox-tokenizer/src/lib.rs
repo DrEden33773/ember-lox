@@ -28,7 +28,7 @@ impl Token {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
   /// A line comment, e.g. `// comment`.
   LineComment,
@@ -41,6 +41,15 @@ pub enum TokenKind {
 
   /// NewLine sequence (Linux/MacOS=LF, Windows=CRLF, OSX=CR)
   NewLine,
+
+  /// Literals, e,g, `123`, `123.45`, `"abc"`, `"a"`
+  ///
+  /// See [LiteralKind] for more details.
+  Literal {
+    kind: LiteralKind,
+    // suffix_start: u32,
+    content: String,
+  },
 
   /// `;`
   Semi,
@@ -87,16 +96,45 @@ pub enum TokenKind {
   /// `/`
   Slash,
 
-  /// Unknown character (aka. unexpected character).
+  /// Unexpected Character
   ///
   /// It can't be expected by the tokenizer, e.g. "№"
-  Unknown { ch: char, line: u32 },
+  UnexpectedCharacter { ch: char, line: u32 },
+
+  /// Unterminated String (loss right `"`)
+  ///
+  /// e.g. `"Hello, World!`
+  UnterminatedString { line: u32 },
 
   /// End of file
   Eof,
 }
 
 use TokenKind::*;
+
+/// Enum representing the literal types supported by the tokenizer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LiteralKind {
+  /// `123`, `123.12` (all treated as `f64`).
+  Number { base: Base, empty_exponent: bool },
+  /// `"abc"`, `"abc`
+  Str { terminated: bool },
+}
+
+use LiteralKind::*;
+
+/// Base of numeric literal encoding according to its prefix.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Base {
+  /// Literal starts with "0b".
+  Binary = 2,
+  /// Literal starts with "0o".
+  Octal = 8,
+  /// Literal doesn't contain a prefix.
+  Decimal = 10,
+  /// Literal starts with "0x".
+  Hexadecimal = 16,
+}
 
 /// Creates an iterator that produces tokens from the input string.
 ///
@@ -119,14 +157,16 @@ pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> + '_ {
   tokenize(input).chain(std::iter::once(Token::new(TokenKind::Eof, 0)))
 }
 
-/// This is Pattern_White_Space.
+/// True if `c` is considered a whitespace according to Rust language definition.
+/// See [Rust language reference](https://doc.rust-lang.org/reference/whitespace.html)
+/// for definitions of these classes.
 ///
 /// Note that:
 ///
 /// 1. This set is stable (ie, it doesn't change with different
 /// Unicode versions), so it's ok to just hard-code the values.
 ///
-/// 2. Detection for `new_line` has been moved to
+/// 2. Detection for `new_line` has been moved out of this function.
 pub fn is_whitespace(c: char) -> bool {
   matches!(
     c,
@@ -149,6 +189,31 @@ pub fn is_whitespace(c: char) -> bool {
         | '\u{2028}' // LINE SEPARATOR
         | '\u{2029}' // PARAGRAPH SEPARATOR
   )
+}
+
+/// True if `c` is valid as a first character of an identifier.
+/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
+/// a formal definition of valid identifier name.
+pub fn is_id_start(c: char) -> bool {
+  // This is XID_Start OR '_' (which formally is not a XID_Start).
+  c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
+}
+
+/// True if `c` is valid as a non-first character of an identifier.
+/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
+/// a formal definition of valid identifier name.
+pub fn is_id_continue(c: char) -> bool {
+  unicode_xid::UnicodeXID::is_xid_continue(c)
+}
+
+/// The passed string is lexically an identifier.
+pub fn is_ident(string: &str) -> bool {
+  let mut chars = string.chars();
+  if let Some(start) = chars.next() {
+    is_id_start(start) && chars.all(is_id_continue)
+  } else {
+    false
+  }
 }
 
 /// `\n` (Unicode)
@@ -186,8 +251,9 @@ impl Cursor<'_> {
         // On Windows, this case is `unreachable`
         #[cfg(all(debug_assertions, target_os = "windows"))]
         {
-          unreachable!()
+          unreachable!();
         }
+
         // On Linux / MacOS, `\n` is a newline.
         #[cfg(not(target_os = "windows"))]
         {
@@ -234,7 +300,21 @@ impl Cursor<'_> {
 
       c if is_whitespace(c) => self.whitespace(),
 
-      _ => Unknown {
+      '"' => {
+        let gathered = self.double_quoted_string();
+        let str_len = self.pos_within_token();
+        let Some(gathered) = gathered else {
+          // Unterminated String (loss right `"`)
+          return Token::new(UnterminatedString { line: self.line() }, str_len);
+        };
+        let kind = Str { terminated: true };
+        Literal {
+          kind,
+          content: gathered,
+        }
+      }
+
+      _ => UnexpectedCharacter {
         ch: first_char,
         line: self.line(),
       },
@@ -261,6 +341,30 @@ impl Cursor<'_> {
     LineComment
   }
 
+  /// Eats double-quoted string and returns true
+  /// if string is terminated.
+  fn double_quoted_string(&mut self) -> Option<String> {
+    debug_assert!(self.prev() == '"');
+    let mut gathered = String::new();
+    while let Some(c) = self.bump() {
+      match c {
+        '"' => {
+          return Some(gathered);
+        }
+        '\\' if self.first() == '\\' || self.first() == '"' => {
+          gathered.push('"');
+          // Bump again to skip escaped character.
+          self.bump();
+        }
+        _ => gathered.push(c),
+      }
+    }
+    // End of file reached.
+    None
+  }
+}
+
+impl Cursor<'_> {
   fn equal_equal(&mut self) -> TokenKind {
     debug_assert!(self.prev() == '=' && self.first() == '=');
     self.bump(); // Eat `=`.
@@ -289,7 +393,7 @@ impl Cursor<'_> {
 impl TokenKind {
   pub fn try_get_line(&self) -> Option<u32> {
     match self {
-      Unknown { line, .. } => Some(*line),
+      UnexpectedCharacter { line, .. } => Some(*line),
       _ => None,
     }
   }
@@ -297,7 +401,7 @@ impl TokenKind {
 
 impl Token {
   pub fn is_err(&self) -> bool {
-    matches!(self.kind, Unknown { .. })
+    matches!(self.kind, UnexpectedCharacter { .. })
   }
 
   pub fn try_get_line(&self) -> Option<u32> {
@@ -305,11 +409,19 @@ impl Token {
   }
 
   pub fn dbg(&self) -> String {
-    if let Unknown { ch, line } = self.kind {
+    if let UnexpectedCharacter { ch, line } = self.kind {
       return format!("[line {}] Error: Unexpected character: {}", line, ch);
     }
 
-    let prefix = match self.kind {
+    match self.kind {
+      UnexpectedCharacter { ch, line } => {
+        return format!("[line {}] Error: Unexpected character: {}", line, ch)
+      }
+      UnterminatedString { line } => return format!("[line {}] Error: Unterminated string.", line),
+      _ => {}
+    }
+
+    let curr = match self.kind {
       OpenParen => "LEFT_PAREN (",
       CloseParen => "RIGHT_PAREN )",
       OpenBrace => "LEFT_BRACE {",
@@ -340,10 +452,18 @@ impl Token {
       _ => "",
     };
 
-    if prefix.is_empty() {
-      prefix.to_string()
-    } else {
-      prefix.to_string() + " null"
+    if !curr.is_empty() {
+      return curr.to_string() + " null";
     }
+
+    let curr = match &self.kind {
+      Literal { kind, content } => match kind {
+        Number { .. } => format!("NUMBER {} {}", content, content),
+        Str { .. } => format!("STRING \"{}\" {}", content, content),
+      },
+      _ => "".to_string(),
+    };
+
+    curr
   }
 }

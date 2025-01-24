@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+unicode-xid = "0.2.6"
 
+[dependencies.unicode-properties]
+version = "0.1.0"
+default-features = false
+features = ["emoji"]
 
 [features]
 default = []
