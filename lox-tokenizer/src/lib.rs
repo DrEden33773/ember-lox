@@ -453,8 +453,8 @@ pub fn number_literal_to_lexeme_str(literal: &str) -> String {
   // has `.`, treat as f64
   let mut lexeme = format!("{}", literal.parse::<f64>().unwrap_or_default());
 
-  // if lose `.0`, add it back
-  if !lexeme.ends_with(".0") {
+  // if lose `.`, add `.0` at the tail
+  if !lexeme.contains('.') {
     lexeme.push_str(".0");
   }
 
