@@ -445,11 +445,20 @@ impl TokenKind {
 }
 
 pub fn number_literal_to_lexeme_str(literal: &str) -> String {
-  let Some((before, after)) = literal.split_once('.') else {
-    // pure integer, add `.0` at the tail
+  if literal.split_once('.').is_none() {
+    // pure i64, add `.0` at the tail
     return literal.to_string() + ".0";
   };
-  before.to_string() + "." + after
+
+  // has `.`, treat as f64
+  let mut lexeme = format!("{}", literal.parse::<f64>().unwrap_or_default());
+
+  // if lose `.0`, add it back
+  if !lexeme.ends_with(".0") {
+    lexeme.push_str(".0");
+  }
+
+  lexeme
 }
 
 impl Token {
