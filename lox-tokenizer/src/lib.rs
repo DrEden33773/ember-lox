@@ -114,7 +114,6 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
 }
 
 /// Same with [tokenize], but produces an `EOF` token at the end.
-#[cfg(debug_assertions)]
 pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> + '_ {
   // Note that EOF's length is always 0
   tokenize(input).chain(std::iter::once(Token::new(TokenKind::Eof, 0)))

@@ -12,8 +12,7 @@ pub struct Cursor<'a> {
   len_remaining: usize,
   /// Iterator over chars. Slightly faster than a &str.
   chars: Chars<'a>,
-  #[cfg(debug_assertions)]
-  prev: char,
+  prev_ch: char,
   line: u32,
 }
 
@@ -24,8 +23,7 @@ impl<'a> Cursor<'a> {
     Cursor {
       len_remaining: input.len(),
       chars: input.chars(),
-      #[cfg(debug_assertions)]
-      prev: EOF_CHAR,
+      prev_ch: EOF_CHAR,
       line: 1,
     }
   }
@@ -38,7 +36,7 @@ impl<'a> Cursor<'a> {
   /// (For debug assertions only.)
   pub fn prev(&self) -> char {
     if cfg!(debug_assertions) {
-      self.prev
+      self.prev_ch
     } else {
       EOF_CHAR
     }
@@ -90,7 +88,7 @@ impl<'a> Cursor<'a> {
     let c = self.chars.next()?;
 
     if cfg!(debug_assertions) {
-      self.prev = c;
+      self.prev_ch = c;
     }
 
     Some(c)
