@@ -13,6 +13,9 @@ fn main() {
   let command = args[1].as_str();
   let filename = args[2].as_str();
 
+  // let command = "tokenize";
+  // let filename = "test.lox";
+
   match command {
     "tokenize" => {
       let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {

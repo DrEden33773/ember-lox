@@ -28,7 +28,7 @@ impl Token {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
   /// A line comment, e.g. `// comment`.
   LineComment,
@@ -48,7 +48,6 @@ pub enum TokenKind {
   Literal {
     kind: LiteralKind,
     // suffix_start: u32,
-    content: String,
   },
 
   /// `;`
@@ -113,18 +112,19 @@ pub enum TokenKind {
 use TokenKind::*;
 
 /// Enum representing the literal types supported by the tokenizer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum LiteralKind {
   /// `123`, `123.12` (all treated as `f64`).
-  Number { base: Base, empty_exponent: bool },
+  Number { base: Base, literal: String },
   /// `"abc"`, `"abc`
-  Str { terminated: bool },
+  Str { literal: String },
 }
 
 use LiteralKind::*;
 
 /// Base of numeric literal encoding according to its prefix.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
 pub enum Base {
   /// Literal starts with "0b".
   Binary = 2,
@@ -300,6 +300,13 @@ impl Cursor<'_> {
 
       c if is_whitespace(c) => self.whitespace(),
 
+      // Numeric Literal
+      c @ '0'..='9' => {
+        let literal_kind = self.number(c);
+        Literal { kind: literal_kind }
+      }
+
+      // String Literal
       '"' => {
         let gathered = self.double_quoted_string();
         let str_len = self.pos_within_token();
@@ -307,11 +314,8 @@ impl Cursor<'_> {
           // Unterminated String (loss right `"`)
           return Token::new(UnterminatedString { line: self.line() }, str_len);
         };
-        let kind = Str { terminated: true };
-        Literal {
-          kind,
-          content: gathered,
-        }
+        let kind = Str { literal: gathered };
+        Literal { kind }
       }
 
       _ => UnexpectedCharacter {
@@ -362,6 +366,47 @@ impl Cursor<'_> {
     // End of file reached.
     None
   }
+
+  fn number(&mut self, first_digit: char) -> LiteralKind {
+    debug_assert!('0' <= self.prev() && self.prev() <= '9');
+    let base = Base::Decimal;
+    let mut literal = first_digit.to_string();
+
+    // Eat integer part
+    let int_part = self.eat_decimal_digits();
+    literal.push_str(&int_part);
+
+    // Make sure the pattern is `<numeric>.<numeric>`
+    if self.first() == '.' && self.second().is_digit(base as u8 as u32) {
+      self.bump(); // Eat `.`
+      literal.push('.');
+
+      let frac_part = self.eat_decimal_digits();
+      literal.push_str(&frac_part);
+    }
+
+    Number { base, literal }
+  }
+
+  /// `_` could appear in the sequence of numeric literals.
+  ///
+  /// E.g. `1_000_000`, `100_000.123_456`
+  fn eat_decimal_digits(&mut self) -> String {
+    let mut gathered = String::new();
+    loop {
+      match self.first() {
+        '_' => {
+          self.bump();
+        }
+        c @ '0'..='9' => {
+          self.bump();
+          gathered.push(c);
+        }
+        _ => break,
+      }
+    }
+    gathered
+  }
 }
 
 impl Cursor<'_> {
@@ -397,6 +442,14 @@ impl TokenKind {
       _ => None,
     }
   }
+}
+
+pub fn number_literal_to_lexeme_str(literal: &str) -> String {
+  let Some((before, after)) = literal.split_once('.') else {
+    // pure integer, add `.0` at the tail
+    return literal.to_string() + ".0";
+  };
+  before.to_string() + "." + after
 }
 
 impl Token {
@@ -460,9 +513,13 @@ impl Token {
     }
 
     let curr = match &self.kind {
-      Literal { kind, content } => match kind {
-        Number { .. } => format!("NUMBER {} {}", content, content),
-        Str { .. } => format!("STRING \"{}\" {}", content, content),
+      Literal { kind } => match kind {
+        Number { literal, .. } => format!(
+          "NUMBER {} {}",
+          literal,
+          number_literal_to_lexeme_str(literal)
+        ),
+        Str { literal } => format!("STRING \"{}\" {}", literal, literal),
       },
       _ => "".to_string(),
     };
