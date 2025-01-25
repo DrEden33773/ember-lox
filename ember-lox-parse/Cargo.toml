@@ -1,0 +1,7 @@
+[package]
+name = "ember-lox-parse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.ember-lox-tokenizer]
+path = "../ember-lox-tokenizer"

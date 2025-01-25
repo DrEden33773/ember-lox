@@ -1,6 +1,6 @@
-//! ## Low-lever `lox` tokenizer
+//! Low-lever `lox` tokenizer
 //!
-//! ### Acknowledgement
+//! Acknowledgement:
 //!
 //! - [`rustc_lexer`](https://github.com/rust-lang/rust/tree/master/compiler/rustc_lexer)
 //! - [`Crafting Interpreters`](https://craftinginterpreters.com/)
@@ -13,22 +13,29 @@ pub mod error;
 pub use cursor::Cursor;
 
 pub mod prelude {
-  pub use super::{tokenize, tokenize_with_eof, Token, TokenKind};
+  pub use super::cursor::Cursor;
+  pub use super::{tokenize, tokenize_with_eof, Base, LiteralKind, TagToken, TokenKind};
 }
 
-#[derive(Debug)]
-pub struct Token {
+/// [`TagToken`] = Tag-only Token
+///
+/// That means, no allocated string (gathered from source text) is held.
+/// Instead, it records current tag-only token's `length`.
+///
+/// [`TokenKind::Literal`]'s actual name will be gathered in `parsing` stage.
+#[derive(Debug, Clone, Copy)]
+pub struct TagToken {
   pub kind: TokenKind,
-  pub len: u32,
+  pub len: usize,
 }
 
-impl Token {
-  pub fn new(kind: TokenKind, len: u32) -> Self {
+impl TagToken {
+  pub fn new(kind: TokenKind, len: usize) -> Self {
     Self { kind, len }
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
   /// A line comment, e.g. `// comment`.
   LineComment,
@@ -45,10 +52,7 @@ pub enum TokenKind {
   /// Literals, e,g, `123`, `123.45`, `"abc"`, `"a"`
   ///
   /// See [LiteralKind] for more details.
-  Literal {
-    kind: LiteralKind,
-    // suffix_start: u32,
-  },
+  Literal { kind: LiteralKind },
 
   /// `;`
   Semi,
@@ -95,6 +99,9 @@ pub enum TokenKind {
   /// `/`
   Slash,
 
+  /// An identifier that is invalid because it contains emoji.
+  InvalidIdent { line: u32 },
+
   /// Unexpected Character
   ///
   /// It can't be expected by the tokenizer, e.g. "№"
@@ -105,19 +112,31 @@ pub enum TokenKind {
   /// e.g. `"Hello, World!`
   UnterminatedString { line: u32 },
 
+  /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`. Excludes
+  /// literal prefixes that contain emoji, which are considered "invalid".
+  ///
+  /// Note that only the
+  /// prefix (`foo`) is included in the token, not the separator (which is
+  /// tokenized as its own distinct token). In Rust 2021 and later, reserved
+  /// prefixes are reported as errors; in earlier editions, they result in a
+  /// (allowed by default) lint, and are treated as regular identifier
+  /// tokens.
+  UnknownPrefix { line: u32 },
+
   /// End of file
   Eof,
 }
 
+use unicode_properties::UnicodeEmoji;
 use TokenKind::*;
 
 /// Enum representing the literal types supported by the tokenizer.
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LiteralKind {
   /// `123`, `123.12` (all treated as `f64`).
-  Number { base: Base, literal: String },
+  Number { base: Base, empty_frac: bool },
   /// `"abc"`, `"abc`
-  Str { literal: String },
+  Str { terminated: bool },
 }
 
 use LiteralKind::*;
@@ -139,7 +158,7 @@ pub enum Base {
 /// Creates an iterator that produces tokens from the input string.
 ///
 /// Note that `EOF` won't be produced by this iterator.
-pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
+pub fn tokenize(input: &str) -> impl Iterator<Item = TagToken> + '_ {
   let mut cursor = Cursor::new(input);
   std::iter::from_fn(move || {
     let token = cursor.advance_token();
@@ -152,43 +171,9 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
 }
 
 /// Same with [tokenize], but produces an `EOF` token at the end.
-pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = Token> + '_ {
+pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = TagToken> + '_ {
   // Note that EOF's length is always 0
-  tokenize(input).chain(std::iter::once(Token::new(TokenKind::Eof, 0)))
-}
-
-/// True if `c` is considered a whitespace according to Rust language definition.
-/// See [Rust language reference](https://doc.rust-lang.org/reference/whitespace.html)
-/// for definitions of these classes.
-///
-/// Note that:
-///
-/// 1. This set is stable (ie, it doesn't change with different
-/// Unicode versions), so it's ok to just hard-code the values.
-///
-/// 2. Detection for `new_line` has been moved out of this function.
-pub fn is_whitespace(c: char) -> bool {
-  matches!(
-    c,
-    // Usual ASCII suspects
-    '\u{0009}'   // \t
-        // | '\u{000A}' // \n
-        | '\u{000B}' // vertical tab
-        | '\u{000C}' // form feed
-        // | '\u{000D}' // \r
-        | '\u{0020}' // space
-
-        // NEXT LINE from latin1
-        // | '\u{0085}'
-
-        // Bidirectional markers
-        | '\u{200E}' // LEFT-TO-RIGHT MARK
-        | '\u{200F}' // RIGHT-TO-LEFT MARK
-
-        // Dedicated whitespace characters from Unicode
-        | '\u{2028}' // LINE SEPARATOR
-        | '\u{2029}' // PARAGRAPH SEPARATOR
-  )
+  tokenize(input).chain(std::iter::once(TagToken::new(TokenKind::Eof, 0)))
 }
 
 /// True if `c` is valid as a first character of an identifier.
@@ -223,13 +208,14 @@ pub const BACKSLASH_R: char = '\u{000D}';
 
 impl Cursor<'_> {
   /// Parses a token from the input string.
-  pub fn advance_token(&mut self) -> Token {
+  pub fn advance_token(&mut self) -> TagToken {
     let first_char = match self.bump() {
       Some(c) => c,
-      None => return Token::new(TokenKind::Eof, 0),
+      None => return TagToken::new(TokenKind::Eof, 0),
     };
 
     let token_kind = match first_char {
+      // windows new_line
       BACKSLASH_R => {
         if cfg!(target_os = "windows") {
           // On Windows, `\r\n` is a newline.
@@ -246,14 +232,13 @@ impl Cursor<'_> {
           Whitespace
         }
       }
-
+      // linux/macOS(>10) new_line
       BACKSLASH_N => {
         // On Windows, this case is `unreachable`
         #[cfg(all(debug_assertions, target_os = "windows"))]
         {
           unreachable!();
         }
-
         // On Linux / MacOS, `\n` is a newline.
         #[cfg(not(target_os = "windows"))]
         {
@@ -266,7 +251,6 @@ impl Cursor<'_> {
         '/' => self.line_comment(),
         _ => Slash,
       },
-
       '=' => match self.first() {
         '=' => self.equal_equal(),
         _ => Eq,
@@ -284,6 +268,7 @@ impl Cursor<'_> {
         _ => Gt,
       },
 
+      // One-symbol tokens.
       ';' => Semi,
       ',' => Comma,
       '.' => Dot,
@@ -293,12 +278,16 @@ impl Cursor<'_> {
       '}' => CloseBrace,
       '[' => OpenBracket,
       ']' => CloseBracket,
-
       '-' => Minus,
       '+' => Plus,
       '*' => Star,
 
-      c if is_whitespace(c) => self.whitespace(),
+      // Whitespace (`new_line` is not included here)
+      c if c.is_whitespace() => self.whitespace(),
+
+      // Identifier (this should be checked after other variant that can
+      // start as identifier).
+      c if is_id_start(c) => self.ident_or_unknown_prefix(),
 
       // Numeric Literal
       c @ '0'..='9' => {
@@ -308,13 +297,12 @@ impl Cursor<'_> {
 
       // String Literal
       '"' => {
-        let gathered = self.double_quoted_string();
+        let terminated = self.double_quoted_string();
         let str_len = self.pos_within_token();
-        let Some(gathered) = gathered else {
-          // Unterminated String (loss right `"`)
-          return Token::new(UnterminatedString { line: self.line() }, str_len);
-        };
-        let kind = Str { literal: gathered };
+        if !terminated {
+          return TagToken::new(UnterminatedString { line: self.line() }, str_len);
+        }
+        let kind = Str { terminated };
         Literal { kind }
       }
 
@@ -323,7 +311,7 @@ impl Cursor<'_> {
         line: self.line(),
       },
     };
-    let res = Token::new(token_kind, self.pos_within_token());
+    let res = TagToken::new(token_kind, self.pos_within_token());
     // Remember to reset the consumed bytes length!
     self.reset_pos_within_token();
     res
@@ -332,8 +320,8 @@ impl Cursor<'_> {
 
 impl Cursor<'_> {
   fn whitespace(&mut self) -> TokenKind {
-    debug_assert!(is_whitespace(self.prev()));
-    self.eat_while(is_whitespace);
+    debug_assert!(self.prev().is_whitespace());
+    self.eat_while(char::is_whitespace);
     Whitespace
   }
 
@@ -347,65 +335,87 @@ impl Cursor<'_> {
 
   /// Eats double-quoted string and returns true
   /// if string is terminated.
-  fn double_quoted_string(&mut self) -> Option<String> {
+  fn double_quoted_string(&mut self) -> bool {
     debug_assert!(self.prev() == '"');
-    let mut gathered = String::new();
     while let Some(c) = self.bump() {
       match c {
         '"' => {
-          return Some(gathered);
+          return true;
         }
         '\\' if self.first() == '\\' || self.first() == '"' => {
-          gathered.push('"');
           // Bump again to skip escaped character.
           self.bump();
         }
-        _ => gathered.push(c),
+        _ => {}
       }
     }
     // End of file reached.
-    None
+    false
   }
 
-  fn number(&mut self, first_digit: char) -> LiteralKind {
+  fn ident_or_unknown_prefix(&mut self) -> TokenKind {
+    debug_assert!(is_id_start(self.prev()));
+    // Start is already eaten, eat the rest of identifier.
+    self.eat_while(is_id_continue);
+    // Known prefixes must have been handled earlier. So if
+    // we see a prefix here, it is definitely an unknown prefix.
+    match self.first() {
+      '#' | '"' | '\'' => UnknownPrefix { line: self.line() },
+      c if !c.is_ascii() && c.is_emoji_char() => self.invalid_ident(),
+      _ => Ident,
+    }
+  }
+
+  fn invalid_ident(&mut self) -> TokenKind {
+    // Start is already eaten, eat the rest of identifier.
+    self.eat_while(|c| {
+      const ZERO_WIDTH_JOINER: char = '\u{200d}';
+      is_id_continue(c) || (!c.is_ascii() && c.is_emoji_char()) || c == ZERO_WIDTH_JOINER
+    });
+    // An invalid identifier followed by '#' or '"' or '\'' could be
+    // interpreted as an invalid literal prefix. We don't bother doing that
+    // because the treatment of invalid identifiers and invalid prefixes
+    // would be the same.
+    InvalidIdent { line: self.line() }
+  }
+
+  fn number(&mut self, _first_digit: char) -> LiteralKind {
     debug_assert!('0' <= self.prev() && self.prev() <= '9');
+
     let base = Base::Decimal;
-    let mut literal = first_digit.to_string();
+    let mut empty_frac = true;
 
     // Eat integer part
-    let int_part = self.eat_decimal_digits();
-    literal.push_str(&int_part);
+    self.eat_decimal_digits();
 
     // Make sure the pattern is `<numeric>.<numeric>`
-    if self.first() == '.' && self.second().is_digit(base as u8 as u32) {
+    if self.first() == '.' && self.second().is_digit(base as u32) {
       self.bump(); // Eat `.`
-      literal.push('.');
-
-      let frac_part = self.eat_decimal_digits();
-      literal.push_str(&frac_part);
+      self.eat_decimal_digits();
+      empty_frac = false;
     }
 
-    Number { base, literal }
+    Number { base, empty_frac }
   }
 
   /// `_` could appear in the sequence of numeric literals.
   ///
   /// E.g. `1_000_000`, `100_000.123_456`
-  fn eat_decimal_digits(&mut self) -> String {
-    let mut gathered = String::new();
+  fn eat_decimal_digits(&mut self) -> bool {
+    let mut has_digits = false;
     loop {
       match self.first() {
         '_' => {
           self.bump();
         }
-        c @ '0'..='9' => {
+        '0'..='9' => {
+          has_digits = true;
           self.bump();
-          gathered.push(c);
         }
         _ => break,
       }
     }
-    gathered
+    has_digits
   }
 }
 
@@ -461,78 +471,24 @@ pub fn number_literal_to_lexeme_str(literal: &str) -> String {
   lexeme
 }
 
-impl Token {
+impl TagToken {
   pub fn is_err(&self) -> bool {
     matches!(
       self.kind,
-      UnexpectedCharacter { .. } | UnterminatedString { .. }
+      UnexpectedCharacter { .. }
+        | UnterminatedString { .. }
+        | InvalidIdent { .. }
+        | UnknownPrefix { .. }
     )
   }
 
   pub fn try_get_line(&self) -> Option<u32> {
-    self.kind.try_get_line()
-  }
-
-  pub fn dbg(&self) -> String {
-    if let UnexpectedCharacter { ch, line } = self.kind {
-      return format!("[line {}] Error: Unexpected character: {}", line, ch);
-    }
-
     match self.kind {
-      UnexpectedCharacter { ch, line } => {
-        return format!("[line {}] Error: Unexpected character: {}", line, ch)
-      }
-      UnterminatedString { line } => return format!("[line {}] Error: Unterminated string.", line),
-      _ => {}
+      UnexpectedCharacter { line, .. }
+      | UnterminatedString { line, .. }
+      | InvalidIdent { line }
+      | UnknownPrefix { line } => Some(line),
+      _ => None,
     }
-
-    let curr = match self.kind {
-      OpenParen => "LEFT_PAREN (",
-      CloseParen => "RIGHT_PAREN )",
-      OpenBrace => "LEFT_BRACE {",
-      CloseBrace => "RIGHT_BRACE }",
-      OpenBracket => "LEFT_BRACKET [",
-      CloseBracket => "RIGHT_BRACKET ]",
-
-      Semi => "SEMICOLON ;",
-      Dot => "DOT .",
-      Comma => "COMMA ,",
-
-      Eq => "EQUAL =",
-      EqEq => "EQUAL_EQUAL ==",
-      Bang => "BANG !",
-      BangEq => "BANG_EQUAL !=",
-      Lt => "LESS <",
-      LtEq => "LESS_EQUAL <=",
-      Gt => "GREATER >",
-      GtEq => "GREATER_EQUAL >=",
-
-      Minus => "MINUS -",
-      Plus => "PLUS +",
-      Star => "STAR *",
-      Slash => "SLASH /",
-
-      Eof => "EOF ",
-
-      _ => "",
-    };
-
-    if !curr.is_empty() {
-      return curr.to_string() + " null";
-    }
-
-    let curr = match &self.kind {
-      Literal { kind } => match kind {
-        Number { literal, .. } => format!(
-          "NUMBER {} {}",
-          literal,
-          number_literal_to_lexeme_str(literal)
-        ),
-        Str { literal } => format!("STRING \"{}\" {}", literal, literal),
-      },
-      _ => "".to_string(),
-    };
-
-    curr
   }
 }
