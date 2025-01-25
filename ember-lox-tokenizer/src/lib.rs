@@ -44,7 +44,7 @@ pub enum TokenKind {
   Whitespace,
 
   /// An identifier or keyword (e.g. `if`, `else`)
-  Ident,
+  Identifier,
 
   /// NewLine sequence (Linux/MacOS=LF, Windows=CRLF, OSX=CR)
   NewLine,
@@ -295,7 +295,7 @@ impl Cursor<'_> {
         Literal { kind: literal_kind }
       }
 
-      // String Literal
+      // String Literal, will take `"` into account of `str_len`
       '"' => {
         let terminated = self.double_quoted_string();
         let str_len = self.pos_within_token();
@@ -362,7 +362,7 @@ impl Cursor<'_> {
     match self.first() {
       '#' | '"' | '\'' => UnknownPrefix { line: self.line() },
       c if !c.is_ascii() && c.is_emoji_char() => self.invalid_ident(),
-      _ => Ident,
+      _ => Identifier,
     }
   }
 

@@ -68,7 +68,7 @@ pub fn tag_to_named_tokens<'src>(
   tag_tokens.map(move |tag_token| {
     let end = start + tag_token.len;
     let transmuted = match tag_token.kind {
-      Ident | InvalidIdent { .. } | Literal { .. } | UnknownPrefix { .. } => {
+      Identifier | InvalidIdent { .. } | Literal { .. } | UnknownPrefix { .. } => {
         let slice = &src[start..end];
         Token::Valued(tag_token, slice)
       }
@@ -95,11 +95,16 @@ impl Token<'_> {
             }
             format!("NUMBER {} {}", value, lexeme)
           }
-          Str { terminated: _ } => format!("STRING \"{}\" {}", value, value),
+          Str { terminated: _ } => {
+            debug_assert!(value.starts_with('"') && value.ends_with('"'));
+            let len = value.len();
+            // According to the test case, lexeme should remove the quotes.
+            format!("STRING {} {}", value, &value[1..len - 1])
+          }
         },
         InvalidIdent { line } => format!("[line {}] Error: Invalid identifier: {}", line, value),
         UnknownPrefix { line } => format!("[line {}] Error: Unknown prefix: {}", line, value),
-        Ident => match RESERVED_WORDS.get(value) {
+        Identifier => match RESERVED_WORDS.get(value) {
           Some(_) => format!("{} {} null", value.to_uppercase(), value),
           None => format!("IDENTIFIER {} null", value),
         },
