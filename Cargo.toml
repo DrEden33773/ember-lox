@@ -1,4 +1,4 @@
-cargo-features = ["codegen-backend"]
+# cargo-features = ["codegen-backend"]
 
 [package]
 name = "ember-lox"
@@ -23,5 +23,5 @@ path = "./ember-lox-tokenizer"
 [dependencies.ember-lox-parse]
 path = "./ember-lox-parse"
 
-[profile.dev]
-codegen-backend = "cranelift"
+# [profile.dev]
+# codegen-backend = "cranelift"
