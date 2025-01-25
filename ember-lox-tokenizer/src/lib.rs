@@ -201,6 +201,16 @@ pub fn is_ident(string: &str) -> bool {
   }
 }
 
+/// Whether `c` is `LF (\n)` or `CR (\r)`.
+pub fn is_a_possible_new_line(c: char) -> bool {
+  c == BACKSLASH_N || c == BACKSLASH_R
+}
+
+/// Whether `c` is a whitespace character (but not a new_line).
+pub fn is_whitespace(c: char) -> bool {
+  c.is_whitespace() && !is_a_possible_new_line(c)
+}
+
 /// `\n` (Unicode)
 pub const BACKSLASH_N: char = '\u{000A}';
 /// `\r` (Unicode)
@@ -283,7 +293,7 @@ impl Cursor<'_> {
       '*' => Star,
 
       // Whitespace (`new_line` is not included here)
-      c if c.is_whitespace() => self.whitespace(),
+      c if is_whitespace(c) => self.whitespace(),
 
       // Identifier (this should be checked after other variant that can
       // start as identifier).
@@ -320,8 +330,8 @@ impl Cursor<'_> {
 
 impl Cursor<'_> {
   fn whitespace(&mut self) -> TokenKind {
-    debug_assert!(self.prev().is_whitespace());
-    self.eat_while(char::is_whitespace);
+    debug_assert!(is_whitespace(self.prev()));
+    self.eat_while(is_whitespace);
     Whitespace
   }
 

@@ -36,7 +36,7 @@ fn main() {
       }
       let exit_code = if tok_errors.is_empty() { 0 } else { 65 };
 
-      tok_errors.iter().for_each(|e| println!("{}", e.dbg()));
+      tok_errors.iter().for_each(|e| eprintln!("{}", e.dbg()));
       pure_tokens
         .iter()
         .filter(|t| !t.dbg().is_empty())
