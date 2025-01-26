@@ -1,3 +1,11 @@
+# Ember-lox
+
+## Brief
+
+An implementation of [lox](https://craftinginterpreters.com/the-lox-language.html)'s `compile toolchain` + `interpreter` in [Rust](https://www.rust-lang.org/).
+
+## Acknowledgement
+
 [![progress-banner](https://backend.codecrafters.io/progress/interpreter/52c10a91-b03b-41f9-bff5-8f439c856a1a)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
 This is a starting point for Rust solutions to the
@@ -27,7 +35,7 @@ challenge. This challenge will start from chapter 4,
 **Note**: If you're viewing this repo on GitHub, head over to
 [codecrafters.io](https://codecrafters.io) to try the challenge.
 
-# Passing the first stage
+### Passing the first stage
 
 The entry point for your program is in `src/main.rs`. Study and uncomment the
 relevant code, and push your changes to pass the first stage:
@@ -39,7 +47,7 @@ git push origin master
 
 Time to move on to the next stage!
 
-# Stage 2 & beyond
+### Stage 2 & beyond
 
 Note: This section is for stages 2 and beyond.
 
