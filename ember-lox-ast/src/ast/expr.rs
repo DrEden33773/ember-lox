@@ -5,18 +5,53 @@ use std::fmt::Display;
 /// Box<Expr> => prevent recursive definition (infinite size)
 #[derive(Debug, Clone)]
 pub enum Expr {
-  Assign(Assign),
-  Binary(Binary),
-  Call(Call),
-  Get(Get),
-  Grouping(Grouping),
-  Literal(Literal),
-  Logical(Logical),
-  Set(Set),
-  Super(Super),
-  This(This),
-  Unary(Unary),
-  Var(Var),
+  Assign {
+    name: STR,
+    val: Box<Expr>,
+  },
+  Binary {
+    left: Box<Expr>,
+    op: Operator,
+    right: Box<Expr>,
+  },
+  Call {
+    callee: Box<Expr>,
+    args: Vec<Expr>,
+  },
+  Get {
+    obj: Box<Expr>,
+    name: STR,
+  },
+  Grouping {
+    expr: Box<Expr>,
+  },
+  Literal {
+    val: LiteralValue,
+  },
+  Logical {
+    left: Box<Expr>,
+    op: Operator,
+    right: Box<Expr>,
+  },
+  Set {
+    obj: Box<Expr>,
+    name: STR,
+    val: Box<Expr>,
+  },
+  Super {
+    keyword: STR,
+    method: STR,
+  },
+  This {
+    keyword: STR,
+  },
+  Unary {
+    op: Operator,
+    right: Box<Expr>,
+  },
+  Var {
+    name: STR,
+  },
 }
 
 impl VisitorAcceptor for Expr {
@@ -91,75 +126,4 @@ impl Display for Operator {
     };
     f.write_str(op_str)
   }
-}
-
-#[derive(Debug, Clone)]
-pub struct Assign {
-  pub name: STR,
-  pub val: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Binary {
-  pub left: Box<Expr>,
-  pub op: Operator,
-  pub right: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Call {
-  pub callee: Box<Expr>,
-  pub args: Vec<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Get {
-  pub obj: Box<Expr>,
-  pub name: STR,
-}
-
-#[derive(Debug, Clone)]
-pub struct Grouping {
-  pub expr: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Literal {
-  pub val: LiteralValue,
-}
-
-#[derive(Debug, Clone)]
-pub struct Logical {
-  pub left: Box<Expr>,
-  pub op: Operator,
-  pub right: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Set {
-  pub obj: Box<Expr>,
-  pub name: STR,
-  pub val: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Super {
-  pub keyword: STR,
-  pub method: STR,
-}
-
-#[derive(Debug, Clone)]
-pub struct This {
-  pub keyword: STR,
-}
-
-#[derive(Debug, Clone)]
-pub struct Unary {
-  pub op: Operator,
-  pub right: Box<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Var {
-  pub name: STR,
 }

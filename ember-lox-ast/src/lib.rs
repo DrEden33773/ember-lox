@@ -17,47 +17,51 @@ impl Visitor for AstPrinter {
   type Output = String;
 
   fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
-    use Stmt::*;
-
+    #[allow(unused_variables)]
     match stmt {
-      Block(_block) => todo!(),
-      Class(_class) => todo!(),
-      Expression(expression) => expression.expr.accept(self),
-      Function(_function) => todo!(),
-      If(_if) => todo!(),
-      Print(print) => format!("(print {})", print.expr.accept(self)),
-      Return(_return) => todo!(),
-      Variable(var) => {
-        let init_str = var
-          .initializer
+      Stmt::Block { stmts } => todo!(),
+      Stmt::Class {
+        name,
+        superclass,
+        methods,
+      } => todo!(),
+      Stmt::Expression { expr } => expr.accept(self),
+      Stmt::Function { name, params, body } => todo!(),
+      Stmt::If {
+        cond,
+        then_branch,
+        else_branch,
+      } => todo!(),
+      Stmt::Print { expr } => format!("(print {})", expr.accept(self)),
+      Stmt::Return { name, value } => todo!(),
+      Stmt::Variable { name, initializer } => {
+        let init_str = initializer
           .as_ref()
           .map(|e| e.accept(self))
           .unwrap_or_default();
-        format!("(var {} {})", var.name, init_str)
+        format!("(var {} {})", name, init_str)
       }
-      While(_while) => todo!(),
+      Stmt::While { cond, body } => todo!(),
     }
   }
 
-  fn visit_expr(&mut self, _expr: &Expr) -> Self::Output {
-    match _expr {
-      Expr::Assign(assign) => format!("(assign {} {})", assign.name, assign.val.accept(self)),
-      Expr::Binary(binary) => format!(
-        "({} {} {})",
-        binary.op,
-        binary.left.accept(self),
-        binary.right.accept(self)
-      ),
-      Expr::Call(_call) => todo!(),
-      Expr::Get(_get) => todo!(),
-      Expr::Grouping(_grouping) => todo!(),
-      Expr::Literal(literal) => literal.val.to_string(),
-      Expr::Logical(_logical) => todo!(),
-      Expr::Set(_set) => todo!(),
-      Expr::Super(_super) => todo!(),
-      Expr::This(_this) => todo!(),
-      Expr::Unary(_unary) => todo!(),
-      Expr::Var(_var) => todo!(),
+  fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
+    #[allow(unused_variables)]
+    match expr {
+      Expr::Assign { name, val } => format!("(assign {} {})", name, val.accept(self)),
+      Expr::Binary { left, op, right } => {
+        format!("({} {} {})", op, left.accept(self), right.accept(self))
+      }
+      Expr::Call { callee, args } => todo!(),
+      Expr::Get { obj, name } => todo!(),
+      Expr::Grouping { expr } => todo!(),
+      Expr::Literal { val } => val.to_string(),
+      Expr::Logical { left, op, right } => todo!(),
+      Expr::Set { obj, name, val } => todo!(),
+      Expr::Super { keyword, method } => todo!(),
+      Expr::This { keyword } => todo!(),
+      Expr::Unary { op, right } => todo!(),
+      Expr::Var { name } => todo!(),
     }
   }
 }

@@ -3,7 +3,7 @@ pub mod ast_printer_test {
   use ember_lox_ast::{
     ast::{
       expr::{self, Expr},
-      stmt::{self, Stmt},
+      stmt::Stmt,
     },
     visit::VisitorAcceptor,
     AstPrinter,
@@ -12,33 +12,30 @@ pub mod ast_printer_test {
 
   #[test]
   fn case1() {
-    use Expr::*;
-    use Stmt::*;
-
     // var x = 1 + 2 * 3
-    let expr = Variable(stmt::Variable {
+    let expr = Stmt::Variable {
       name: intern_string("x"),
-      initializer: Binary(expr::Binary {
-        left: Literal(expr::Literal {
+      initializer: Expr::Binary {
+        left: Expr::Literal {
           val: expr::LiteralValue::Number(1.0),
-        })
+        }
         .into(),
         op: expr::Operator::Plus,
-        right: Binary(expr::Binary {
-          left: Literal(expr::Literal {
+        right: Expr::Binary {
+          left: Expr::Literal {
             val: expr::LiteralValue::Number(2.0),
-          })
+          }
           .into(),
           op: expr::Operator::Multiply,
-          right: Literal(expr::Literal {
+          right: Expr::Literal {
             val: expr::LiteralValue::Number(3.0),
-          })
+          }
           .into(),
-        })
+        }
         .into(),
-      })
+      }
       .into(),
-    });
+    };
 
     let mut printer = AstPrinter;
     let res = expr.accept(&mut printer);
