@@ -26,7 +26,7 @@ pub fn new_parser_from_src_str(str: &str) {
   let _named_tokens = tag_to_named_tokens(str, tag_tokens);
 }
 
-pub static RESERVED_WORDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+pub static RESERVED_WORDS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
   [
     "and", "class", "else", "false", "for", "fun", "if", "nil", "or", "print", "return", "super",
     "this", "true", "var", "while",
