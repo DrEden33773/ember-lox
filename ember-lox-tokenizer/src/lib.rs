@@ -7,14 +7,14 @@
 //! - [`Build your own Interpreter`](https://app.codecrafters.io/courses/interpreter/overview)
 
 pub mod cursor;
-#[deprecated(note = "`Tokenization Error` has been treated as a special `TokenKind`")]
-pub mod error;
 
 pub use cursor::Cursor;
 
 pub mod prelude {
   pub use super::cursor::Cursor;
-  pub use super::{tokenize, tokenize_with_eof, Base, LiteralKind, TagToken, TokenKind};
+  pub use super::{
+    tokenize, tokenize_with_eof, Base, LiteralKind, TagToken, TokenKind, TokenizationError,
+  };
 }
 
 /// [`TagToken`] = Tag-only Token
@@ -99,18 +99,28 @@ pub enum TokenKind {
   /// `/`
   Slash,
 
+  /// Tokenization Error
+  TokErr(TokenizationError),
+
+  /// End of file
+  Eof,
+}
+
+/// Tokenization Error (treated as a part of [TokenKind])
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenizationError {
   /// An identifier that is invalid because it contains emoji.
-  InvalidIdent { line: u32 },
+  InvalidIdent { line: usize },
 
   /// Unexpected Character
   ///
   /// It can't be expected by the tokenizer, e.g. "№"
-  UnexpectedCharacter { ch: char, line: u32 },
+  UnexpectedCharacter { ch: char, line: usize },
 
   /// Unterminated String (loss right `"`)
   ///
   /// e.g. `"Hello, World!`
-  UnterminatedString { line: u32 },
+  UnterminatedString { line: usize },
 
   /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`. Excludes
   /// literal prefixes that contain emoji, which are considered "invalid".
@@ -121,14 +131,23 @@ pub enum TokenKind {
   /// prefixes are reported as errors; in earlier editions, they result in a
   /// (allowed by default) lint, and are treated as regular identifier
   /// tokens.
-  UnknownPrefix { line: u32 },
+  UnknownPrefix { line: usize },
+}
 
-  /// End of file
-  Eof,
+impl TokenizationError {
+  pub fn line(&self) -> usize {
+    match self {
+      InvalidIdent { line } => *line,
+      UnexpectedCharacter { line, .. } => *line,
+      UnterminatedString { line } => *line,
+      UnknownPrefix { line } => *line,
+    }
+  }
 }
 
 use unicode_properties::UnicodeEmoji;
 use TokenKind::*;
+use TokenizationError::*;
 
 /// Enum representing the literal types supported by the tokenizer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -310,16 +329,16 @@ impl Cursor<'_> {
         let terminated = self.double_quoted_string();
         let str_len = self.pos_within_token();
         if !terminated {
-          return TagToken::new(UnterminatedString { line: self.line() }, str_len);
+          return TagToken::new(TokErr(UnterminatedString { line: self.line() }), str_len);
         }
         let kind = Str { terminated };
         Literal { kind }
       }
 
-      _ => UnexpectedCharacter {
+      _ => TokErr(UnexpectedCharacter {
         ch: first_char,
         line: self.line(),
-      },
+      }),
     };
     let res = TagToken::new(token_kind, self.pos_within_token());
     // Remember to reset the consumed bytes length!
@@ -370,7 +389,7 @@ impl Cursor<'_> {
     // Known prefixes must have been handled earlier. So if
     // we see a prefix here, it is definitely an unknown prefix.
     match self.first() {
-      '#' | '"' | '\'' => UnknownPrefix { line: self.line() },
+      '#' | '"' | '\'' => TokErr(UnknownPrefix { line: self.line() }),
       c if !c.is_ascii() && c.is_emoji_char() => self.invalid_ident(),
       _ => Identifier,
     }
@@ -386,7 +405,7 @@ impl Cursor<'_> {
     // interpreted as an invalid literal prefix. We don't bother doing that
     // because the treatment of invalid identifiers and invalid prefixes
     // would be the same.
-    InvalidIdent { line: self.line() }
+    TokErr(InvalidIdent { line: self.line() })
   }
 
   fn number(&mut self, _first_digit: char) -> LiteralKind {
@@ -456,9 +475,9 @@ impl Cursor<'_> {
 }
 
 impl TokenKind {
-  pub fn try_get_line(&self) -> Option<u32> {
+  pub fn try_get_line(&self) -> Option<usize> {
     match self {
-      UnexpectedCharacter { line, .. } => Some(*line),
+      TokErr(UnexpectedCharacter { line, .. }) => Some(*line),
       _ => None,
     }
   }
@@ -483,21 +502,12 @@ pub fn number_literal_to_lexeme_str(literal: &str) -> String {
 
 impl TagToken {
   pub fn is_err(&self) -> bool {
-    matches!(
-      self.kind,
-      UnexpectedCharacter { .. }
-        | UnterminatedString { .. }
-        | InvalidIdent { .. }
-        | UnknownPrefix { .. }
-    )
+    matches!(self.kind, TokErr(_))
   }
 
-  pub fn try_get_line(&self) -> Option<u32> {
+  pub fn try_get_line(&self) -> Option<usize> {
     match self.kind {
-      UnexpectedCharacter { line, .. }
-      | UnterminatedString { line, .. }
-      | InvalidIdent { line }
-      | UnknownPrefix { line } => Some(line),
+      TokErr(e) => e.line().into(),
       _ => None,
     }
   }

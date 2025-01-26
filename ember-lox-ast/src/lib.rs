@@ -54,13 +54,15 @@ impl Visitor for AstPrinter {
       }
       Expr::Call { callee, args } => todo!(),
       Expr::Get { obj, name } => todo!(),
-      Expr::Grouping { expr } => todo!(),
+      Expr::Grouping { expr } => format!("(group {})", expr.accept(self)),
       Expr::Literal { val } => val.to_string(),
-      Expr::Logical { left, op, right } => todo!(),
+      Expr::Logical { left, op, right } => {
+        format!("({} {} {})", op, left.accept(self), right.accept(self))
+      }
       Expr::Set { obj, name, val } => todo!(),
       Expr::Super { keyword, method } => todo!(),
       Expr::This { keyword } => todo!(),
-      Expr::Unary { op, right } => todo!(),
+      Expr::Unary { op, right } => format!("({} {})", op, right.accept(self)),
       Expr::Var { name } => todo!(),
     }
   }

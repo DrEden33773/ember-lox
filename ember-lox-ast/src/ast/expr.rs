@@ -85,7 +85,14 @@ pub enum LiteralValue {
 impl Display for LiteralValue {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      LiteralValue::Number(n) => write!(f, "{}", n),
+      LiteralValue::Number(n) => {
+        // At lease should have one decimal (fraction) place
+        let mut output = n.to_string();
+        if !output.contains('.') {
+          output.push_str(".0");
+        }
+        write!(f, "{}", output)
+      }
       LiteralValue::String(s) => write!(f, "{}", s),
       LiteralValue::Bool(b) => write!(f, "{}", b),
       LiteralValue::Nil => write!(f, "nil"),

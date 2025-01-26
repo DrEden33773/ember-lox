@@ -59,6 +59,7 @@ impl<'src> Deref for Token<'src> {
 
 use LiteralKind::*;
 use TokenKind::*;
+use TokenizationError::*;
 
 pub fn tag_to_named_tokens<'src>(
   src: &'src str,
@@ -68,7 +69,7 @@ pub fn tag_to_named_tokens<'src>(
   tag_tokens.map(move |tag_token| {
     let end = start + tag_token.len;
     let transmuted = match tag_token.kind {
-      Identifier | InvalidIdent { .. } | Literal { .. } | UnknownPrefix { .. } => {
+      Identifier | TokErr(_) => {
         let slice = &src[start..end];
         Token::Valued(tag_token, slice)
       }
@@ -102,8 +103,12 @@ impl Token<'_> {
             format!("STRING {} {}", value, &value[1..len - 1])
           }
         },
-        InvalidIdent { line } => format!("[line {}] Error: Invalid identifier: {}", line, value),
-        UnknownPrefix { line } => format!("[line {}] Error: Unknown prefix: {}", line, value),
+        TokErr(InvalidIdent { line }) => {
+          format!("[line {}] Error: Invalid identifier: {}", line, value)
+        }
+        TokErr(UnknownPrefix { line }) => {
+          format!("[line {}] Error: Unknown prefix: {}", line, value)
+        }
         Identifier => match RESERVED_WORDS.get(value) {
           Some(_) => format!("{} {} null", value.to_uppercase(), value),
           None => format!("IDENTIFIER {} null", value),
@@ -112,10 +117,10 @@ impl Token<'_> {
       },
       Token::Tagged(tag_token) => {
         match tag_token.kind {
-          UnexpectedCharacter { ch, line } => {
+          TokErr(UnexpectedCharacter { ch, line }) => {
             return format!("[line {}] Error: Unexpected character: {}", line, ch)
           }
-          UnterminatedString { line } => {
+          TokErr(UnterminatedString { line }) => {
             return format!("[line {}] Error: Unterminated string.", line)
           }
           _ => {}

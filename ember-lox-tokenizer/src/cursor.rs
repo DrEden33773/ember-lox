@@ -13,7 +13,7 @@ pub struct Cursor<'src> {
   /// Iterator over chars. Slightly faster than a &str.
   chars: Chars<'src>,
   prev_ch: char,
-  line: u32,
+  line: usize,
 }
 
 pub(crate) const EOF_CHAR: char = '\0';
@@ -101,11 +101,11 @@ impl<'src> Cursor<'src> {
     }
   }
 
-  pub fn line(&self) -> u32 {
+  pub fn line(&self) -> usize {
     self.line
   }
 
-  pub fn line_mut(&mut self) -> &mut u32 {
+  pub fn line_mut(&mut self) -> &mut usize {
     &mut self.line
   }
 }

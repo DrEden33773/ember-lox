@@ -45,6 +45,7 @@ fn main() {
       std::process::exit(exit_code);
     }
     "parse" => unimplemented!(),
+    "evaluate" => unimplemented!(),
     _ => eprintln!("Unknown command: {}", command),
   }
 }
