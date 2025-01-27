@@ -102,8 +102,8 @@ impl Token<'_> {
       Literal { kind } => match kind {
         Number => {
           let mut displayed = val.parse::<f64>().unwrap_or_default().to_string();
-          let empty_frac = displayed.len() == val.len();
-          if empty_frac || !displayed.ends_with(".0") {
+          // e.g. (123 -> ) 123 => 123.0
+          if !displayed.contains(".") {
             displayed += ".0";
           }
           format!("NUMBER {} {}", val, displayed)
