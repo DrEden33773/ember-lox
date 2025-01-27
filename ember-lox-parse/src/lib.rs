@@ -96,7 +96,7 @@ impl Token<'_> {
     match self.tag.kind {
       LineComment | NewLine | Whitespace => String::new(),
       Identifier => match RESERVED_WORDS.get(val) {
-        Some(_) => format!("{} {} null", val.to_lowercase(), val),
+        Some(_) => format!("{} {} null", val.to_uppercase(), val),
         None => format!("IDENTIFIER {} null", val),
       },
       Literal { kind } => match kind {
