@@ -1,0 +1,27 @@
+┌───┬───┐
+│   │   │
+├───┼───┤
+│   │   │
+└───┴───┘
+
+─ (U+2500) - Box Drawings Light Horizontal
+
+│ (U+2502) - Box Drawings Light Vertical
+
+┌ (U+250C) - Box Drawings Light Down and Right
+
+┐ (U+2510) - Box Drawings Light Down and Left
+
+└ (U+2514) - Box Drawings Light Up and Right
+
+┘ (U+2518) - Box Drawings Light Up and Left
+
+├ (U+251C) - Box Drawings Light Vertical and Right
+
+┤ (U+2524) - Box Drawings Light Vertical and Left
+
+┬ (U+252C) - Box Drawings Light Down and Horizontal
+
+┴ (U+2534) - Box Drawings Light Up and Horizontal
+
+┼ (U+253C) - Box Drawings Light Vertical and Horizontal

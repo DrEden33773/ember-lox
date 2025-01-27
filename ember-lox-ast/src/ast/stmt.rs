@@ -33,7 +33,7 @@ pub enum Stmt {
     expr: Expr,
   },
   Return {
-    name: LiteralValue,
+    keyword: LiteralValue,
     value: Option<Expr>,
   },
   Variable {
