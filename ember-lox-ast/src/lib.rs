@@ -14,6 +14,25 @@ use ember_lox_rt::prelude::*;
 
 pub struct AstPrinter;
 
+fn stringify_multi_lines(starting: &str, contents: &[String], ending: &str) -> String {
+  let mut res = starting.to_string();
+  let new_line = format!("\n{}", "".repeat(starting.len()));
+  for (i, content) in contents.iter().enumerate() {
+    match i {
+      i if i == 0 => res += "::: ",
+      i if i == contents.len() - 1 => res += " └─ ",
+      _ => res += " ├─ ",
+    }
+    res += content;
+    res += if i == contents.len() - 1 {
+      ending
+    } else {
+      &new_line
+    };
+  }
+  res
+}
+
 fn stringify_function(
   p: &mut AstPrinter,
   name: &STR,
@@ -22,18 +41,12 @@ fn stringify_function(
 ) -> String {
   let params = params.join(", ");
   let body = body.iter().map(|s| s.accept(p)).collect::<Vec<_>>();
-  let mut res = format!("(fun {}({}) ", name, params);
-  let new_line = format!("\n{}", "".repeat(name.len()));
-  for (i, stmt) in body.iter().enumerate() {
-    match i {
-      i if i == 0 => res += "::: ",
-      i if i == body.len() - 1 => res += " └─ ",
-      _ => res += " ├─ ",
-    }
-    res += stmt;
-    res += if i == body.len() - 1 { ")" } else { &new_line };
-  }
-  res
+  let starting = if name.is_empty() {
+    "(function ".to_string()
+  } else {
+    format!("(function {}({}) ", name, params)
+  };
+  stringify_multi_lines(&starting, &body, ")")
 }
 
 fn stringify_variable(p: &mut AstPrinter, name: &STR, initializer: &Option<Expr>) -> String {
@@ -51,18 +64,7 @@ impl Visitor for AstPrinter {
     match stmt {
       Stmt::Block { stmts } => {
         let stmts = stmts.iter().map(|s| s.accept(self)).collect::<Vec<_>>();
-        let mut res = "(block ".to_string();
-        let new_line = format!("\n{}", "".repeat(res.len()));
-        for (i, stmt) in stmts.iter().enumerate() {
-          match i {
-            i if i == 0 => res += "::: ",
-            i if i == stmts.len() - 1 => res += " └─ ",
-            _ => res += " ├─ ",
-          }
-          res += stmt;
-          res += if i == stmts.len() - 1 { ")" } else { &new_line };
-        }
-        res
+        stringify_multi_lines("(block ", &stmts, ")")
       }
       Stmt::Class {
         name,
@@ -77,26 +79,12 @@ impl Visitor for AstPrinter {
           .iter()
           .map(|(name, params, body)| stringify_function(self, name, params, body))
           .collect::<Vec<_>>();
-        let mut res = if superclass.is_empty() {
+        let starting = if superclass.is_empty() {
           format!("(class {} ", name)
         } else {
           format!("(class {} extends {} ", name, superclass)
         };
-        let new_line = format!("\n{}", "".repeat(res.len()));
-        for (i, method) in methods.iter().enumerate() {
-          match i {
-            i if i == 0 => res += "::: ",
-            i if i == methods.len() - 1 => res += " └─ ",
-            _ => res += " ├─ ",
-          }
-          res += method;
-          res += if i == methods.len() - 1 {
-            ")"
-          } else {
-            &new_line
-          };
-        }
-        res
+        stringify_multi_lines(&starting, &methods, ")")
       }
       Stmt::Expression { expr } => expr.accept(self),
       Stmt::Function { name, params, body } => stringify_function(self, name, params, body),
