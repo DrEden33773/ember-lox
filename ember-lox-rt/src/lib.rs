@@ -1,13 +1,16 @@
 use dashmap::DashMap;
 use std::sync::{Arc, LazyLock, Weak};
 
+pub mod ast_interpreter;
+pub mod bytecode_vm;
+
 /// The maximum length of a string to be interned.
 pub const MAX_INTERN_STR_LEN: usize = 128;
 /// Immutable Str Reference
 pub type STR = Arc<str>;
 
 pub mod prelude {
-  pub use super::{MAX_INTERN_STR_LEN, STR, intern_string};
+  pub use super::{intern_string, MAX_INTERN_STR_LEN, STR};
 }
 
 /// `String pool` for interning strings.
