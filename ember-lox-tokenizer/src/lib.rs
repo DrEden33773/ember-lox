@@ -483,23 +483,6 @@ impl TokenKind {
   }
 }
 
-pub fn number_literal_to_lexeme_str(literal: &str) -> String {
-  if literal.split_once('.').is_none() {
-    // pure i64, add `.0` at the tail
-    return literal.to_string() + ".0";
-  };
-
-  // has `.`, treat as f64
-  let mut lexeme = format!("{}", literal.parse::<f64>().unwrap_or_default());
-
-  // if lose `.`, add `.0` at the tail
-  if !lexeme.contains('.') {
-    lexeme.push_str(".0");
-  }
-
-  lexeme
-}
-
 impl TagToken {
   pub fn is_err(&self) -> bool {
     matches!(self.kind, TokErr(_))
@@ -510,5 +493,38 @@ impl TagToken {
       TokErr(e) => e.line().into(),
       _ => None,
     }
+  }
+
+  pub fn dbg_pure_tag(&self) -> String {
+    let prefix = match self.kind {
+      OpenParen => "LEFT_PAREN (",
+      CloseParen => "RIGHT_PAREN )",
+      OpenBrace => "LEFT_BRACE {",
+      CloseBrace => "RIGHT_BRACE }",
+      OpenBracket => "LEFT_BRACKET [",
+      CloseBracket => "RIGHT_BRACKET ]",
+
+      Semi => "SEMICOLON ;",
+      Dot => "DOT .",
+      Comma => "COMMA ,",
+
+      Eq => "EQUAL =",
+      EqEq => "EQUAL_EQUAL ==",
+      Bang => "BANG !",
+      BangEq => "BANG_EQUAL !=",
+      Lt => "LESS <",
+      LtEq => "LESS_EQUAL <=",
+      Gt => "GREATER >",
+      GtEq => "GREATER_EQUAL >=",
+
+      Minus => "MINUS -",
+      Plus => "PLUS +",
+      Star => "STAR *",
+      Slash => "SLASH /",
+
+      Eof => "EOF ",
+      _ => "",
+    };
+    prefix.to_string() + if prefix.is_empty() { "" } else { " null" }
   }
 }

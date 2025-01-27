@@ -5,7 +5,7 @@
 //! - [rustc_parse](https://github.com/rust-lang/rust/tree/master/compiler/rustc_parse)
 
 use ember_lox_tokenizer::prelude::*;
-use std::{collections::HashSet, fs, io, ops::Deref, sync::LazyLock};
+use std::{collections::HashSet, fs, io, sync::LazyLock};
 
 pub mod parser;
 
@@ -38,23 +38,11 @@ pub static RESERVED_WORDS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
 
 /// [`Token`] = Named-Token
 ///
-/// Unlike [TagToken], [Token] could hold the name for `identifier` or `literal`.
+/// Unlike [TagToken], [Token] could hold the name (original value)
 #[derive(Debug, Clone, Copy)]
-pub enum Token<'src> {
-  Tagged(TagToken),
-  Valued(TagToken, &'src str),
-}
-
-impl<'src> Deref for Token<'src> {
-  type Target = TagToken;
-
-  /// A delegation from [Token] to [TagToken].
-  fn deref(&self) -> &Self::Target {
-    match self {
-      Token::Tagged(tag_token) => tag_token,
-      Token::Valued(tag_token, _) => tag_token,
-    }
-  }
+pub struct Token<'src> {
+  pub tag: TagToken,
+  pub val: &'src str,
 }
 
 use LiteralKind::*;
@@ -69,12 +57,10 @@ pub fn tag_to_named_tokens<'src>(
   let mut start = 0;
   tag_tokens.map(move |tag_token| {
     let end = start + tag_token.len;
-    let transmuted = match tag_token.kind {
-      Identifier | TokErr(_) => {
-        let slice = &src[start..end];
-        Token::Valued(tag_token, slice)
-      }
-      _ => Token::Tagged(tag_token),
+    let slice = &src[start..end];
+    let transmuted = Token {
+      tag: tag_token,
+      val: slice,
     };
     start = end;
     transmuted
@@ -83,81 +69,41 @@ pub fn tag_to_named_tokens<'src>(
 
 impl Token<'_> {
   pub fn dbg(&self) -> String {
-    match self {
-      Token::Valued(tag_token, value) => match tag_token.kind {
-        Literal { kind } => match kind {
-          Number {
-            base: _,
-            empty_frac,
-          } => {
-            let mut lexeme = value.parse::<f64>().unwrap_or_default().to_string()
-              + if empty_frac { ".0" } else { "" };
-            if !empty_frac && !lexeme.contains('.') {
-              lexeme += ".0";
-            }
-            format!("NUMBER {} {}", value, lexeme)
-          }
-          Str { terminated: _ } => {
-            debug_assert!(value.starts_with('"') && value.ends_with('"'));
-            let len = value.len();
-            // According to the test case, lexeme should remove the quotes.
-            format!("STRING {} {}", value, &value[1..len - 1])
-          }
-        },
-        TokErr(InvalidIdent { line }) => {
-          format!("[line {}] Error: Invalid identifier: {}", line, value)
-        }
-        TokErr(UnknownPrefix { line }) => {
-          format!("[line {}] Error: Unknown prefix: {}", line, value)
-        }
-        Identifier => match RESERVED_WORDS.get(value) {
-          Some(_) => format!("{} {} null", value.to_uppercase(), value),
-          None => format!("IDENTIFIER {} null", value),
-        },
-        _ => "".to_string(),
+    let val = self.val;
+    match self.tag.kind {
+      LineComment | NewLine | Whitespace => String::new(),
+      Identifier => match RESERVED_WORDS.get(val) {
+        Some(_) => format!("{} {} null", val.to_lowercase(), val),
+        None => format!("IDENTIFIER {} null", val),
       },
-      Token::Tagged(tag_token) => {
-        match tag_token.kind {
-          TokErr(UnexpectedCharacter { ch, line }) => {
-            return format!("[line {}] Error: Unexpected character: {}", line, ch)
+      Literal { kind } => match kind {
+        Number {
+          base: _,
+          empty_frac,
+        } => {
+          let mut displayed =
+            val.parse::<f64>().unwrap_or_default().to_string() + if empty_frac { ".0" } else { "" };
+          if !empty_frac && !displayed.contains('.') {
+            displayed += ".0";
           }
-          TokErr(UnterminatedString { line }) => {
-            return format!("[line {}] Error: Unterminated string.", line)
-          }
-          _ => {}
-        };
-
-        let curr = match tag_token.kind {
-          OpenParen => "LEFT_PAREN (",
-          CloseParen => "RIGHT_PAREN )",
-          OpenBrace => "LEFT_BRACE {",
-          CloseBrace => "RIGHT_BRACE }",
-          OpenBracket => "LEFT_BRACKET [",
-          CloseBracket => "RIGHT_BRACKET ]",
-
-          Semi => "SEMICOLON ;",
-          Dot => "DOT .",
-          Comma => "COMMA ,",
-
-          Eq => "EQUAL =",
-          EqEq => "EQUAL_EQUAL ==",
-          Bang => "BANG !",
-          BangEq => "BANG_EQUAL !=",
-          Lt => "LESS <",
-          LtEq => "LESS_EQUAL <=",
-          Gt => "GREATER >",
-          GtEq => "GREATER_EQUAL >=",
-
-          Minus => "MINUS -",
-          Plus => "PLUS +",
-          Star => "STAR *",
-          Slash => "SLASH /",
-
-          Eof => "EOF ",
-          _ => "",
-        };
-        curr.to_string() + if curr.is_empty() { "" } else { " null" }
-      }
+          format!("NUMBER {} {}", val, displayed)
+        }
+        Str { terminated: _ } => {
+          debug_assert!(val.starts_with('"') && val.ends_with('"'));
+          let len = val.len();
+          // According to the test case, lexeme should remove the quotes.
+          format!("STRING {} {}", val, &val[1..len - 1])
+        }
+      },
+      TokErr(tokenization_error) => match tokenization_error {
+        InvalidIdent { line } => format!("[line {}] Error: Invalid identifier: {}", line, val),
+        UnexpectedCharacter { ch, line } => {
+          format!("[line {}] Error: Unexpected character: {}", line, ch)
+        }
+        UnterminatedString { line } => format!("[line {}] Error: Unterminated string.", line),
+        UnknownPrefix { line } => format!("[line {}] Error: Unknown prefix: {}", line, val),
+      },
+      _ => self.tag.dbg_pure_tag(),
     }
   }
 }

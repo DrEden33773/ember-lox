@@ -28,7 +28,7 @@ fn main() {
       let tokens = tag_to_named_tokens(&src, tagged_tokens);
 
       for token in tokens {
-        if token.is_err() {
+        if token.tag.is_err() {
           tok_errors.push(token);
         } else {
           pure_tokens.push(token);
