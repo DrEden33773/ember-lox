@@ -61,6 +61,7 @@ use LiteralKind::*;
 use TokenKind::*;
 use TokenizationError::*;
 
+/// Transmute [TagToken] to [Token].
 pub fn tag_to_named_tokens<'src>(
   src: &'src str,
   tag_tokens: impl Iterator<Item = TagToken>,
