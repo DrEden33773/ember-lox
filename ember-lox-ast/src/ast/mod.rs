@@ -4,5 +4,5 @@ pub mod expr;
 pub mod stmt;
 
 pub mod prelude {
-  pub use super::{expr, stmt};
+  pub use super::{expr::*, stmt::*};
 }

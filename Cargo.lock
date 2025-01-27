@@ -62,6 +62,7 @@ dependencies = [
  "ember-lox-parse",
  "ember-lox-rt",
  "ember-lox-tokenizer",
+ "macros",
  "thiserror",
 ]
 
@@ -70,13 +71,16 @@ name = "ember-lox-ast"
 version = "0.1.0"
 dependencies = [
  "ember-lox-rt",
+ "ember-lox-tokenizer",
 ]
 
 [[package]]
 name = "ember-lox-parse"
 version = "0.1.0"
 dependencies = [
+ "ember-lox-ast",
  "ember-lox-tokenizer",
+ "macros",
 ]
 
 [[package]]
@@ -117,6 +121,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -146,9 +159,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.36"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7"
+checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
 ]

@@ -5,27 +5,55 @@
 //! - [rustc_parse](https://github.com/rust-lang/rust/tree/master/compiler/rustc_parse)
 
 use ember_lox_tokenizer::prelude::*;
-use std::{collections::HashSet, fs, io, sync::LazyLock};
+use macros::gen_reserved_tok_methods;
+use parser::Parser;
+use std::{collections::HashSet, sync::LazyLock};
 
+pub mod error;
 pub mod parser;
 
 pub mod prelude {
-  pub use super::{
-    new_parser_from_file, new_parser_from_src_str, tag_to_named_tokens, Token, RESERVED_WORDS,
-  };
+  pub use super::{new_parser_from_src_str, tag_to_named_tokens, Token, RESERVED_WORDS};
   pub use ember_lox_tokenizer::prelude::*;
 }
 
-pub fn new_parser_from_file(path: &str) -> io::Result<()> {
-  let src_str = fs::read_to_string(path)?;
-  Ok(new_parser_from_src_str(&src_str))
+use TokenKind::*;
+/// `WON'T` include [Eof] at the tail.
+///
+/// Will filter out listed [TokenKind]:
+///
+/// [Eof], [Whitespace], [NewLine], [LineComment]
+pub fn new_parser_from_src_str<'src>(str: &'src str) -> Parser<'src> {
+  let tag_tokens = tokenize(str);
+  let tokens = tag_to_named_tokens(str, tag_tokens);
+  let meaningful_tokens =
+    tokens.filter(|t| !matches!(t.tag.kind, Eof | Whitespace | NewLine | LineComment));
+  Parser::new(meaningful_tokens)
 }
 
-pub fn new_parser_from_src_str(str: &str) {
-  let tag_tokens = tokenize_with_eof(str);
-  let _named_tokens = tag_to_named_tokens(str, tag_tokens);
+/// [`Token`] = Named token (with `line` info)
+///
+/// Unlike [TagToken], [Token] could hold the name (original value)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Token<'src> {
+  pub tag: TagToken,
+  pub val: &'src str,
 }
 
+impl<'src> Token<'src> {
+  pub fn eof_tok(line: usize) -> Self {
+    Token {
+      tag: TagToken {
+        kind: TokenKind::Eof,
+        len: 0,
+        line,
+      },
+      val: "",
+    }
+  }
+}
+
+/// Special identifies for the token.
 pub static RESERVED_WORDS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
   [
     "and", "class", "else", "false", "for", "fun", "if", "nil", "or", "print", "return", "super",
@@ -36,17 +64,12 @@ pub static RESERVED_WORDS: LazyLock<HashSet<&str>> = LazyLock::new(|| {
   .collect()
 });
 
-/// [`Token`] = Named-Token
-///
-/// Unlike [TagToken], [Token] could hold the name (original value)
-#[derive(Debug, Clone, Copy)]
-pub struct Token<'src> {
-  pub tag: TagToken,
-  pub val: &'src str,
-}
+gen_reserved_tok_methods!([
+  "and", "class", "else", "false", "for", "fun", "if", "nil", "or", "print", "return", "super",
+  "this", "true", "var", "while"
+]);
 
 use LiteralKind::*;
-use TokenKind::*;
 use TokenizationError::*;
 
 /// Transmute [TagToken] to [Token].
@@ -77,18 +100,15 @@ impl Token<'_> {
         None => format!("IDENTIFIER {} null", val),
       },
       Literal { kind } => match kind {
-        Number {
-          base: _,
-          empty_frac,
-        } => {
-          let mut displayed =
-            val.parse::<f64>().unwrap_or_default().to_string() + if empty_frac { ".0" } else { "" };
-          if !empty_frac && !displayed.contains('.') {
+        Number => {
+          let mut displayed = val.parse::<f64>().unwrap_or_default().to_string();
+          let empty_frac = displayed.len() == val.len();
+          if empty_frac || !displayed.ends_with(".0") {
             displayed += ".0";
           }
           format!("NUMBER {} {}", val, displayed)
         }
-        Str { terminated: _ } => {
+        Str => {
           debug_assert!(val.starts_with('"') && val.ends_with('"'));
           let len = val.len();
           // According to the test case, lexeme should remove the quotes.

@@ -12,9 +12,7 @@ pub use cursor::Cursor;
 
 pub mod prelude {
   pub use super::cursor::Cursor;
-  pub use super::{
-    tokenize, tokenize_with_eof, Base, LiteralKind, TagToken, TokenKind, TokenizationError,
-  };
+  pub use super::{tokenize, Base, LiteralKind, TagToken, TokenKind, TokenizationError};
 }
 
 /// [`TagToken`] = Tag-only Token
@@ -27,11 +25,21 @@ pub mod prelude {
 pub struct TagToken {
   pub kind: TokenKind,
   pub len: usize,
+  pub line: usize,
+}
+
+impl core::cmp::Eq for TagToken {}
+
+impl core::cmp::PartialEq for TagToken {
+  fn eq(&self, other: &Self) -> bool {
+    // DON'T compare line
+    self.kind == other.kind && self.len == other.len
+  }
 }
 
 impl TagToken {
-  pub fn new(kind: TokenKind, len: usize) -> Self {
-    Self { kind, len }
+  pub fn new(kind: TokenKind, len: usize, line: usize) -> Self {
+    Self { kind, len, line }
   }
 }
 
@@ -153,9 +161,9 @@ use TokenizationError::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LiteralKind {
   /// `123`, `123.12` (all treated as `f64`).
-  Number { base: Base, empty_frac: bool },
+  Number,
   /// `"abc"`, `"abc`
-  Str { terminated: bool },
+  Str,
 }
 
 use LiteralKind::*;
@@ -189,12 +197,6 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = TagToken> + '_ {
   })
 }
 
-/// Same with [tokenize], but produces an `EOF` token at the end.
-pub fn tokenize_with_eof(input: &str) -> impl Iterator<Item = TagToken> + '_ {
-  // Note that EOF's length is always 0
-  tokenize(input).chain(std::iter::once(TagToken::new(TokenKind::Eof, 0)))
-}
-
 /// True if `c` is valid as a first character of an identifier.
 /// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
 /// a formal definition of valid identifier name.
@@ -220,9 +222,12 @@ pub fn is_ident(string: &str) -> bool {
   }
 }
 
-/// Whether `c` is `LF (\n)` or `CR (\r)`.
+/// Whether `c` is `LF (\n)`.
+///
+/// `CR (\r)` is not included, because even for windows,
+/// with both `CR` and `LF` will a new line be recognized.
 pub fn is_a_possible_new_line(c: char) -> bool {
-  c == BACKSLASH_N || c == BACKSLASH_R
+  c == BACKSLASH_N
 }
 
 /// Whether `c` is a whitespace character (but not a new_line).
@@ -240,40 +245,13 @@ impl Cursor<'_> {
   pub fn advance_token(&mut self) -> TagToken {
     let first_char = match self.bump() {
       Some(c) => c,
-      None => return TagToken::new(TokenKind::Eof, 0),
+      None => return TagToken::new(TokenKind::Eof, 0, self.line()),
     };
 
     let token_kind = match first_char {
-      // windows new_line
-      BACKSLASH_R => {
-        if cfg!(target_os = "windows") {
-          // On Windows, `\r\n` is a newline.
-          if self.first() == BACKSLASH_N {
-            self.bump();
-            // update `line`
-            *self.line_mut() += 1;
-            NewLine
-          } else {
-            Whitespace
-          }
-        } else {
-          // On Linux / MacOS (>10), `\r` is just a regular character.
-          Whitespace
-        }
-      }
-      // linux/macOS(>10) new_line
       BACKSLASH_N => {
-        // On Windows, this case is `unreachable`
-        #[cfg(all(debug_assertions, target_os = "windows"))]
-        {
-          unreachable!();
-        }
-        // On Linux / MacOS, `\n` is a newline.
-        #[cfg(not(target_os = "windows"))]
-        {
-          *self.line_mut() += 1;
-          NewLine
-        }
+        *self.line_mut() += 1;
+        NewLine
       }
 
       '/' => match self.first() {
@@ -329,9 +307,13 @@ impl Cursor<'_> {
         let terminated = self.double_quoted_string();
         let str_len = self.pos_within_token();
         if !terminated {
-          return TagToken::new(TokErr(UnterminatedString { line: self.line() }), str_len);
+          return TagToken::new(
+            TokErr(UnterminatedString { line: self.line() }),
+            str_len,
+            self.line(),
+          );
         }
-        let kind = Str { terminated };
+        let kind = Str;
         Literal { kind }
       }
 
@@ -340,7 +322,7 @@ impl Cursor<'_> {
         line: self.line(),
       }),
     };
-    let res = TagToken::new(token_kind, self.pos_within_token());
+    let res = TagToken::new(token_kind, self.pos_within_token(), self.line());
     // Remember to reset the consumed bytes length!
     self.reset_pos_within_token();
     res
@@ -412,7 +394,6 @@ impl Cursor<'_> {
     debug_assert!('0' <= self.prev() && self.prev() <= '9');
 
     let base = Base::Decimal;
-    let mut empty_frac = true;
 
     // Eat integer part
     self.eat_decimal_digits();
@@ -421,10 +402,9 @@ impl Cursor<'_> {
     if self.first() == '.' && self.second().is_digit(base as u32) {
       self.bump(); // Eat `.`
       self.eat_decimal_digits();
-      empty_frac = false;
     }
 
-    Number { base, empty_frac }
+    Number
   }
 
   /// `_` could appear in the sequence of numeric literals.

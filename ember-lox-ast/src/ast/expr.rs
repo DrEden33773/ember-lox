@@ -1,5 +1,6 @@
 use crate::visit::{Visitor, VisitorAcceptor};
 use ember_lox_rt::prelude::*;
+use ember_lox_tokenizer::TokenKind;
 use std::fmt::Display;
 
 /// Box<Expr> => prevent recursive definition (infinite size)
@@ -62,16 +63,50 @@ impl VisitorAcceptor for Expr {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Operator {
+  /// +
   Plus,
+  /// -
   Minus,
+  /// *
   Multiply,
+  /// /
   Divide,
+  /// ==
   Equal,
+  /// !=
   NotEqual,
+  /// >
   Greater,
+  /// >=
   GreaterEqual,
+  /// <
   Less,
+  /// <=
   LessEqual,
+  /// !
+  Not,
+}
+
+impl TryFrom<TokenKind> for Operator {
+  type Error = ();
+
+  fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+    use TokenKind::*;
+    match value {
+      Plus => Ok(Operator::Plus),
+      Minus => Ok(Operator::Minus),
+      Star => Ok(Operator::Multiply),
+      Slash => Ok(Operator::Divide),
+      EqEq => Ok(Operator::Equal),
+      BangEq => Ok(Operator::NotEqual),
+      Gt => Ok(Operator::Greater),
+      GtEq => Ok(Operator::GreaterEqual),
+      Lt => Ok(Operator::Less),
+      LtEq => Ok(Operator::LessEqual),
+      Bang => Ok(Operator::Not),
+      _ => Err(()),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -93,7 +128,12 @@ impl Display for LiteralValue {
         }
         write!(f, "{}", output)
       }
-      LiteralValue::String(s) => write!(f, "{}", s),
+      LiteralValue::String(s) => {
+        // Tokenizer will gather `"` at the beginning and ending,
+        // but in the test case, we don't need to print them.
+        debug_assert!(s.starts_with('"') && s.ends_with('"'));
+        write!(f, "{}", &s[1..s.len() - 1])
+      }
       LiteralValue::Bool(b) => write!(f, "{}", b),
       LiteralValue::Nil => write!(f, "nil"),
     }
@@ -130,6 +170,7 @@ impl Display for Operator {
       GreaterEqual => ">=",
       Less => "<",
       LessEqual => "<=",
+      Not => "!",
     };
     f.write_str(op_str)
   }

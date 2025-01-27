@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies.ember-lox-rt]
 path = "../ember-lox-rt"
+
+[dependencies.ember-lox-tokenizer]
+path = "../ember-lox-tokenizer"
