@@ -12,12 +12,27 @@ use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
 use crate::error::report;
 
-pub struct Interpreter;
+#[derive(Default)]
+pub struct Interpreter {
+  has_runtime_error: bool,
+}
 
 impl Interpreter {
-  pub fn interpret<V: VisitorAcceptor>(root: &V) -> Option<LiteralValue> {
-    let mut interpreter = Self;
-    root.accept(&mut interpreter)
+  pub fn interpret(&mut self, roots: &[Stmt]) -> Result<(), ()> {
+    for root in roots {
+      self.execute(root);
+      if self.has_runtime_error {
+        // Reset the flag for the next run.
+        // (extremely useful in `REPL` mode)
+        self.has_runtime_error = false;
+        return Err(());
+      }
+    }
+    Ok(())
+  }
+
+  pub fn execute(&mut self, root: &Stmt) {
+    root.accept(self);
   }
 }
 
@@ -35,14 +50,26 @@ impl Visitor for Interpreter {
         superclass,
         methods,
       } => todo!(),
-      Expression { expr } => todo!(),
+      Expression { expr } => {
+        if expr.accept(self).is_none() {
+          self.has_runtime_error = true;
+        }
+        None // Expressions don't return a value.
+      }
       Function { name, params, body } => todo!(),
       If {
         cond,
         then_branch,
         else_branch,
       } => todo!(),
-      Print { expr } => todo!(),
+      Print { expr } => {
+        let Some(val) = expr.accept(self) else {
+          self.has_runtime_error = true;
+          return None;
+        };
+        println!("{}", val);
+        None // Print statements don't return a value.
+      }
       Return { keyword: _, value } => todo!(),
       Variable { name, initializer } => todo!(),
       While { cond, body } => todo!(),

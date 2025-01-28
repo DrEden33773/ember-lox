@@ -5,18 +5,29 @@ use ember_lox_rt::ast_interpreter::Interpreter;
 use std::env;
 use std::fs;
 
+const TEST_MODE: bool = true;
+const TEST_CMD: &str = "evaluate";
+const TEST_FILENAME: &str = "test.lox";
+
 fn main() {
   let args: Vec<String> = env::args().collect();
-  if args.len() < 3 {
+  if !TEST_MODE && args.len() < 3 {
     println!();
     eprintln!("Usage: <loxc-path> tokenize <filename>\n");
     return;
   }
 
-  let command = args[1].as_str();
-  let filename = args[2].as_str();
-  // let command = "tokenize";
-  // let filename = "test.lox";
+  let command = if TEST_MODE {
+    TEST_CMD
+  } else {
+    args[1].as_str()
+  };
+  let filename = if TEST_MODE {
+    TEST_FILENAME
+  } else {
+    args[2].as_str()
+  };
+
   let src = fs::read_to_string(filename).unwrap_or_else(|_| {
     eprintln!("Failed to read file `{}`", filename);
     String::new()
@@ -55,23 +66,23 @@ fn main() {
     }
     "parse" => {
       let mut parser = new_parser_from_src_str(&src);
-      let Some(ast) = parser.parse() else {
+      let Some(asts) = parser.parse() else {
         std::process::exit(65)
       };
       let mut printer = AstPrinter;
-      let res = ast.accept(&mut printer);
-      println!("{}", res);
+      asts
+        .into_iter()
+        .for_each(|stmt| println!("{}", stmt.accept(&mut printer)));
     }
     "evaluate" => {
       let mut parser = new_parser_from_src_str(&src);
-      let Some(ast) = parser.parse() else {
+      let Some(asts) = parser.parse() else {
         std::process::exit(65)
       };
-      let mut interpreter = Interpreter;
-      let Some(res) = ast.accept(&mut interpreter) else {
+      let mut interpreter = Interpreter::default();
+      if interpreter.interpret(&asts).is_err() {
         std::process::exit(70)
-      };
-      println!("{}", res);
+      }
     }
     _ => eprintln!("Unknown command: {}", command),
   }

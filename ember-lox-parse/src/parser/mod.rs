@@ -35,7 +35,15 @@ impl<'src> Parser<'src> {
       return;
     }
     self.had_parsing_error = true;
-    let err_token = self.peek();
+    // We assume that `self.peek()`'s worst case is to get `None`.
+    let mut err_token = self.peek();
+    if let Some(e) = err_token {
+      // However, in this case, we get the first next-line token, ignored the end of line
+      if e.tag.line != self.curr_line {
+        // Thus, we need to look back to the previous token.
+        err_token = self.prev();
+      }
+    }
     report_detail(self.curr_line, err_token.map(|e| e.val), err_msg);
   }
 
@@ -163,7 +171,22 @@ impl<'src> Parser<'src> {
   }
 
   /// Parsing entry.
-  pub fn parse(&mut self) -> Option<Expr> {
-    self.expression()
+  /// ```
+  /// program → statement* EOF ;
+  /// ```
+  pub fn parse(&mut self) -> Option<Vec<Stmt>> {
+    let mut stmts = vec![];
+    while !self.is_at_end() {
+      stmts.push(self.statement());
+    }
+    if self.had_parsing_error {
+      None
+    } else {
+      stmts
+        .into_iter()
+        .filter_map(|stmt| stmt)
+        .collect::<Vec<_>>()
+        .into()
+    }
   }
 }
