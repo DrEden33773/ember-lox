@@ -5,8 +5,8 @@ use ember_lox_rt::ast_interpreter::Interpreter;
 use std::env;
 use std::fs;
 
-const TEST_MODE: bool = true;
-const TEST_CMD: &str = "evaluate";
+const TEST_MODE: bool = false;
+const TEST_CMD: &str = "run";
 const TEST_FILENAME: &str = "test.lox";
 
 fn main() {
@@ -74,7 +74,7 @@ fn main() {
         .into_iter()
         .for_each(|stmt| println!("{}", stmt.accept(&mut printer)));
     }
-    "evaluate" => {
+    "run" => {
       let mut parser = new_parser_from_src_str(&src);
       let Some(asts) = parser.parse() else {
         std::process::exit(65)

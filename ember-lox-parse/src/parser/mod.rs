@@ -29,12 +29,7 @@ impl<'src> Parser<'src> {
     self.had_parsing_error
   }
 
-  fn consume_by_kind(&mut self, kind: TokenKind, err_msg: &str) {
-    if self.check_kind(kind) {
-      self.advance();
-      return;
-    }
-    self.had_parsing_error = true;
+  fn report_err_token(&self, err_msg: &str) {
     // We assume that `self.peek()`'s worst case is to get `None`.
     let mut err_token = self.peek();
     if let Some(e) = err_token {
@@ -47,18 +42,25 @@ impl<'src> Parser<'src> {
     report_detail(self.curr_line, err_token.map(|e| e.val), err_msg);
   }
 
-  #[allow(dead_code)]
-  fn consume_by_token(&mut self, token: Token, err_msg: &str) {
-    if self.check_token(token) {
-      self.advance();
-      return;
+  fn consume_by_kind(&mut self, kind: TokenKind, err_msg: &str) -> Option<&Token<'src>> {
+    if self.check_kind(kind) {
+      return self.advance();
     }
     self.had_parsing_error = true;
-    let err_token = self.peek();
-    report_detail(self.curr_line, err_token.map(|e| e.val), err_msg);
+    self.report_err_token(err_msg);
+    None
   }
 
   #[allow(dead_code)]
+  fn consume_by_token(&mut self, token: Token, err_msg: &str) -> Option<&Token<'src>> {
+    if self.check_token(token) {
+      return self.advance();
+    }
+    self.had_parsing_error = true;
+    self.report_err_token(err_msg);
+    None
+  }
+
   fn synchronize(&mut self) {
     self.advance();
 
@@ -172,12 +174,12 @@ impl<'src> Parser<'src> {
 
   /// Parsing entry.
   /// ```
-  /// program → statement* EOF ;
+  /// program → declaration* EOF ;
   /// ```
   pub fn parse(&mut self) -> Option<Vec<Stmt>> {
     let mut stmts = vec![];
     while !self.is_at_end() {
-      stmts.push(self.statement());
+      stmts.push(self.declaration());
     }
     if self.had_parsing_error {
       None

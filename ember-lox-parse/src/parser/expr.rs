@@ -122,8 +122,10 @@ impl<'src> Parser<'src> {
   }
 
   /// ```
-  /// primary → NUMBER | STRING | "true" | "false" | "nil"
-  ///         | "(" expression ")" ;
+  /// primary → "true" | "false" | "nil"
+  ///         | NUMBER | STRING
+  ///         | "(" expression ")"
+  ///         | IDENTIFIER ;   
   /// ```
   fn primary(&mut self) -> Option<Expr> {
     use LiteralKind::*;
@@ -170,6 +172,13 @@ impl<'src> Parser<'src> {
       .into();
     }
 
+    if self.match_kind(TokenKind::Identifier) {
+      let name = self.prev()?;
+      return Expr::Var {
+        name: (name.val, name.tag.line).into(),
+      }
+      .into();
+    }
     if self.match_kind(TokenKind::OpenParen) {
       let expr = self.expression()?;
       self.consume_by_kind(TokenKind::CloseParen, "Expect ')' after expression.");
