@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 
 const TEST_MODE: bool = false;
-const TEST_CMD: &str = "run";
+const TEST_CMD: &str = "parse";
 const TEST_FILENAME: &str = "test.lox";
 
 fn main() {
@@ -28,10 +28,15 @@ fn main() {
     args[2].as_str()
   };
 
-  let src = fs::read_to_string(filename).unwrap_or_else(|_| {
+  let mut src = fs::read_to_string(filename).unwrap_or_else(|_| {
     eprintln!("Failed to read file `{}`", filename);
     String::new()
   });
+  if command == "evaluate" && !src.ends_with(";") {
+    // Non-strict mode `REPL` allows the user to omit the semicolon.
+    // But only `strict` api offered, so we add it here.
+    src.push(';');
+  }
 
   match command {
     "tokenize" => {
@@ -74,13 +79,14 @@ fn main() {
         .into_iter()
         .for_each(|stmt| println!("{}", stmt.accept(&mut printer)));
     }
-    "run" => {
+    c if matches!(c, "run" | "evaluate") => {
       let mut parser = new_parser_from_src_str(&src);
       let Some(asts) = parser.parse() else {
         std::process::exit(65)
       };
       let mut interpreter = Interpreter::default();
-      if interpreter.interpret(&asts).is_err() {
+      let repl_mode = c == "evaluate";
+      if interpreter.interpret(&asts, repl_mode).is_err() {
         std::process::exit(70)
       }
     }

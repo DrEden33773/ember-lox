@@ -3,6 +3,7 @@
 //! `Tree-walk` means that `NO BYTECODE` is generated, it will evaluate everything
 //! recursively (from a valid entry point of `AST`) and return the result.  
 
+use crate::error::report;
 use ember_lox_ast::{
   ast::prelude::*,
   visit::{Visitor, VisitorAcceptor},
@@ -10,24 +11,40 @@ use ember_lox_ast::{
 use std::cmp::{PartialEq, PartialOrd};
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
-use crate::error::report;
-
 #[derive(Default)]
 pub struct Interpreter {
   has_runtime_error: bool,
+  is_in_repl: bool,
 }
 
 impl Interpreter {
-  pub fn interpret(&mut self, roots: &[Stmt]) -> Result<(), ()> {
+  pub fn disable_repl_mode(&mut self) {
+    self.is_in_repl = false;
+  }
+
+  pub fn enable_repl_mode(&mut self) {
+    self.is_in_repl = true;
+  }
+
+  pub fn evaluate(&mut self, expr: &Expr) -> Option<LiteralValue> {
+    expr.accept(self)
+  }
+
+  pub fn interpret(&mut self, roots: &[Stmt], is_in_repl: bool) -> Result<(), ()> {
+    self.is_in_repl = is_in_repl;
     for root in roots {
       self.execute(root);
       if self.has_runtime_error {
         // Reset the flag for the next run.
         // (extremely useful in `REPL` mode)
-        self.has_runtime_error = false;
+        if is_in_repl {
+          self.has_runtime_error = false;
+        }
+        self.disable_repl_mode();
         return Err(());
       }
     }
+    self.disable_repl_mode();
     Ok(())
   }
 
@@ -51,10 +68,13 @@ impl Visitor for Interpreter {
         methods,
       } => todo!(),
       Expression { expr } => {
-        if expr.accept(self).is_none() {
+        let curr_val = expr.accept(self);
+        if curr_val.is_none() {
           self.has_runtime_error = true;
+        } else if self.is_in_repl {
+          println!("{}", curr_val.unwrap());
         }
-        None // Expressions don't return a value.
+        None // Don't return anything for script mode.
       }
       Function { name, params, body } => todo!(),
       If {
