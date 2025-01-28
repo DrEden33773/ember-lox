@@ -161,6 +161,15 @@ pub enum LiteralValue {
 }
 
 impl LiteralValue {
+  pub fn check_both_numeric(&self, other: &Self) -> Result<(f64, f64), String> {
+    match (self, other) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok((*a, *b)),
+      _ => Err(format!("Operands must be numbers.")),
+    }
+  }
+}
+
+impl LiteralValue {
   pub fn is_true(&self) -> bool {
     match self {
       LiteralValue::Bool(b) => *b,

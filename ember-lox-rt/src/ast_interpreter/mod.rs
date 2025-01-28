@@ -75,10 +75,22 @@ impl Visitor for Interpreter {
             Ok(r) => r.into(),
             Err(e) => report(op.1, &e),
           },
-          Greater => Some(left.gt(&right).into()),
-          GreaterEqual => Some(left.ge(&right).into()),
-          Less => Some(left.lt(&right).into()),
-          LessEqual => Some(left.le(&right).into()),
+          Greater => match left.check_both_numeric(&right) {
+            Ok((l, r)) => Some(l.gt(&r).into()),
+            Err(e) => report(op.1, &e),
+          },
+          GreaterEqual => match left.check_both_numeric(&right) {
+            Ok((l, r)) => Some(l.ge(&r).into()),
+            Err(e) => report(op.1, &e),
+          },
+          Less => match left.check_both_numeric(&right) {
+            Ok((l, r)) => Some(l.lt(&r).into()),
+            Err(e) => report(op.1, &e),
+          },
+          LessEqual => match left.check_both_numeric(&right) {
+            Ok((l, r)) => Some(l.le(&r).into()),
+            Err(e) => report(op.1, &e),
+          },
           Equal => Some(left.eq(&right).into()),
           NotEqual => Some(left.ne(&right).into()),
           _ => report(op.1, &format!("Invalid binary operator: {}", op.0)),

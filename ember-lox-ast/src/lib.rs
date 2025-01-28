@@ -82,12 +82,14 @@ impl Visitor for AstPrinter {
   type Output = String;
 
   fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
+    use Stmt::*;
+
     match stmt {
-      Stmt::Block { stmts } => {
+      Block { stmts } => {
         let stmts = stmts.iter().map(|s| s.accept(self)).collect::<Vec<_>>();
         stringify_multi_lines("(block ", &stmts, ")")
       }
-      Stmt::Class {
+      Class {
         name,
         superclass, // similar with Stmt::Variable
         methods,    // similar with Stmt::Function
@@ -107,9 +109,9 @@ impl Visitor for AstPrinter {
         };
         stringify_multi_lines(&starting, &methods, ")")
       }
-      Stmt::Expression { expr } => expr.accept(self),
-      Stmt::Function { name, params, body } => stringify_function(self, name, params, body),
-      Stmt::If {
+      Expression { expr } => expr.accept(self),
+      Function { name, params, body } => stringify_function(self, name, params, body),
+      If {
         cond,
         then_branch,
         else_branch,
@@ -126,8 +128,8 @@ impl Visitor for AstPrinter {
         };
         format!("{}{}", if_then, else_)
       }
-      Stmt::Print { expr } => format!("(print {})", expr.accept(self)),
-      Stmt::Return { keyword: _, value } => format!(
+      Print { expr } => format!("(print {})", expr.accept(self)),
+      Return { keyword: _, value } => format!(
         "(return{})",
         if value.is_none() {
           "".to_string()
@@ -135,19 +137,20 @@ impl Visitor for AstPrinter {
           format!(" {}", value.as_ref().unwrap().accept(self))
         }
       ),
-      Stmt::Variable { name, initializer } => stringify_variable(self, name, initializer),
-      Stmt::While { cond, body } => format!("(while {} {})", cond.accept(self), body.accept(self)),
+      Variable { name, initializer } => stringify_variable(self, name, initializer),
+      While { cond, body } => format!("(while {} {})", cond.accept(self), body.accept(self)),
     }
   }
 
   fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
-    #[allow(unused_variables)]
+    use Expr::*;
+
     match expr {
-      Expr::Assign { name, val } => format!("(assign {} {})", name.0, val.accept(self)),
-      Expr::Binary { left, op, right } => {
+      Assign { name, val } => format!("(assign {} {})", name.0, val.accept(self)),
+      Binary { left, op, right } => {
         format!("({} {} {})", op.0, left.accept(self), right.accept(self))
       }
-      Expr::Call { callee, args } => format!(
+      Call { callee, args } => format!(
         "(call {} with [{}])",
         callee.accept(self),
         args
@@ -156,13 +159,13 @@ impl Visitor for AstPrinter {
           .collect::<Vec<_>>()
           .join(", ")
       ),
-      Expr::Get { obj, name } => format!("(get {}.{})", obj.accept(self), name.0),
-      Expr::Grouping { expr } => format!("(group {})", expr.accept(self)),
-      Expr::Literal { val } => format!("{:?}", val.0),
-      Expr::Logical { left, op, right } => {
+      Get { obj, name } => format!("(get {}.{})", obj.accept(self), name.0),
+      Grouping { expr } => format!("(group {})", expr.accept(self)),
+      Literal { val } => format!("{:?}", val.0),
+      Logical { left, op, right } => {
         format!("({} {} {})", op.0, left.accept(self), right.accept(self))
       }
-      Expr::Set { obj, name, val } => {
+      Set { obj, name, val } => {
         format!(
           "(set {}.{} <- {})",
           obj.accept(self),
@@ -170,10 +173,10 @@ impl Visitor for AstPrinter {
           val.accept(self)
         )
       }
-      Expr::Super { keyword: _, method } => format!("(super {})", method.0),
-      Expr::This { keyword: _ } => format!("(this)"),
-      Expr::Unary { op, right } => format!("({} {})", op.0, right.accept(self)),
-      Expr::Var { name } => format!("(var {})", name.0),
+      Super { keyword: _, method } => format!("(super {})", method.0),
+      This { keyword: _ } => format!("(this)"),
+      Unary { op, right } => format!("({} {})", op.0, right.accept(self)),
+      Var { name } => format!("(var {})", name.0),
     }
   }
 }
