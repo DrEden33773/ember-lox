@@ -32,9 +32,9 @@ fn main() {
     eprintln!("Failed to read file `{}`", filename);
     String::new()
   });
-  if command == "evaluate" && !src.ends_with(";") {
+  if matches!(command, "parse" | "evaluate") && !src.ends_with(";") {
     // Non-strict mode `REPL` allows the user to omit the semicolon.
-    // But only `strict` api offered, so we add it here.
+    // But only `strict` strategy offered, so we add a trailing one.
     src.push(';');
   }
 
