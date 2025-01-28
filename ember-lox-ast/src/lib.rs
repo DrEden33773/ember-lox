@@ -158,7 +158,7 @@ impl Visitor for AstPrinter {
       ),
       Expr::Get { obj, name } => format!("(get {}.{})", obj.accept(self), name.0),
       Expr::Grouping { expr } => format!("(group {})", expr.accept(self)),
-      Expr::Literal { val } => val.0.to_string(),
+      Expr::Literal { val } => format!("{:?}", val.0),
       Expr::Logical { left, op, right } => {
         format!("({} {} {})", op.0, left.accept(self), right.accept(self))
       }

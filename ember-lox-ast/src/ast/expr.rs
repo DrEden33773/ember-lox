@@ -4,7 +4,10 @@ use crate::{
   STR,
 };
 use ember_lox_tokenizer::TokenKind;
-use std::{fmt::Display, sync::Arc};
+use std::{
+  fmt::{Debug, Display},
+  sync::Arc,
+};
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -149,7 +152,7 @@ impl From<(LiteralValue, usize)> for PosedLiteral {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LiteralValue {
   Number(f64),
   String(Arc<str>),
@@ -265,16 +268,28 @@ impl std::ops::Not for &LiteralValue {
   }
 }
 
-impl Display for LiteralValue {
+impl Debug for LiteralValue {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      LiteralValue::Number(n) => {
+      Self::Number(n) => {
         // At lease should have one decimal (fraction) place
         let mut output = n.to_string();
         if !output.contains('.') {
           output.push_str(".0");
         }
         write!(f, "{}", output)
+      }
+      _ => write!(f, "{}", self),
+    }
+  }
+}
+
+impl Display for LiteralValue {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      LiteralValue::Number(n) => {
+        // `fmt` will remove the trailing zeros
+        write!(f, "{}", n)
       }
       LiteralValue::String(s) => {
         // Has removed token's `"` at the beginning and end
