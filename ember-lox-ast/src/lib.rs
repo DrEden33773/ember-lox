@@ -9,10 +9,26 @@ pub mod error;
 pub mod pool;
 pub mod visit;
 
+use std::sync::Arc;
+
 use crate::visit::{Visitor, VisitorAcceptor};
 use ast::expr::Expr;
 use ast::stmt::Stmt;
-use pool::prelude::*;
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct STR(pub Arc<str>, pub usize);
+
+impl From<(Arc<str>, usize)> for STR {
+  fn from((s, line): (Arc<str>, usize)) -> Self {
+    Self(s, line)
+  }
+}
+
+impl From<(&str, usize)> for STR {
+  fn from((s, line): (&str, usize)) -> Self {
+    Self(s.into(), line)
+  }
+}
 
 pub struct AstPrinter;
 
@@ -41,12 +57,16 @@ fn stringify_function(
   params: &Vec<STR>,
   body: &Vec<Stmt>,
 ) -> String {
-  let params = params.join(", ");
+  let params = params
+    .iter()
+    .map(|s| s.0.as_ref())
+    .collect::<Vec<_>>()
+    .join(", ");
   let body = body.iter().map(|s| s.accept(p)).collect::<Vec<_>>();
-  let starting = if name.is_empty() {
+  let starting = if name.0.is_empty() {
     "(function ".to_string()
   } else {
-    format!("(function {}({}) ", name, params)
+    format!("(function {}({}) ", name.0, params)
   };
   stringify_multi_lines(&starting, &body, ")")
 }
@@ -56,7 +76,7 @@ fn stringify_variable(p: &mut AstPrinter, name: &STR, initializer: &Option<Expr>
     .as_ref()
     .map(|e| e.accept(p))
     .unwrap_or_default();
-  format!("(var {} {})", name, init_str)
+  format!("(var {} {})", name.0, init_str)
 }
 
 impl Visitor for AstPrinter {
@@ -75,16 +95,16 @@ impl Visitor for AstPrinter {
       } => {
         let superclass = superclass
           .as_ref()
-          .map(|(name, _)| name.to_string())
+          .map(|(name, _)| name.0.to_string())
           .unwrap_or_default();
         let methods = methods
           .iter()
           .map(|(name, params, body)| stringify_function(self, name, params, body))
           .collect::<Vec<_>>();
         let starting = if superclass.is_empty() {
-          format!("(class {} ", name)
+          format!("(class {} ", name.0)
         } else {
-          format!("(class {} extends {} ", name, superclass)
+          format!("(class {} extends {} ", name.0, superclass)
         };
         stringify_multi_lines(&starting, &methods, ")")
       }
@@ -124,9 +144,9 @@ impl Visitor for AstPrinter {
   fn visit_expr(&mut self, expr: &Expr) -> Self::Output {
     #[allow(unused_variables)]
     match expr {
-      Expr::Assign { name, val } => format!("(assign {} {})", name, val.accept(self)),
+      Expr::Assign { name, val } => format!("(assign {} {})", name.0, val.accept(self)),
       Expr::Binary { left, op, right } => {
-        format!("({} {} {})", op, left.accept(self), right.accept(self))
+        format!("({} {} {})", op.0, left.accept(self), right.accept(self))
       }
       Expr::Call { callee, args } => format!(
         "(call {} with [{}])",
@@ -137,24 +157,24 @@ impl Visitor for AstPrinter {
           .collect::<Vec<_>>()
           .join(", ")
       ),
-      Expr::Get { obj, name } => format!("(get {}.{})", obj.accept(self), name),
+      Expr::Get { obj, name } => format!("(get {}.{})", obj.accept(self), name.0),
       Expr::Grouping { expr } => format!("(group {})", expr.accept(self)),
-      Expr::Literal { val } => val.to_string(),
+      Expr::Literal { val } => val.0.to_string(),
       Expr::Logical { left, op, right } => {
-        format!("({} {} {})", op, left.accept(self), right.accept(self))
+        format!("({} {} {})", op.0, left.accept(self), right.accept(self))
       }
       Expr::Set { obj, name, val } => {
         format!(
           "(set {}.{} <- {})",
           obj.accept(self),
-          name,
+          name.0,
           val.accept(self)
         )
       }
-      Expr::Super { keyword: _, method } => format!("(super {})", method),
+      Expr::Super { keyword: _, method } => format!("(super {})", method.0),
       Expr::This { keyword: _ } => format!("(this)"),
-      Expr::Unary { op, right } => format!("({} {})", op, right.accept(self)),
-      Expr::Var { name } => format!("(var {})", name),
+      Expr::Unary { op, right } => format!("({} {})", op.0, right.accept(self)),
+      Expr::Var { name } => format!("(var {})", name.0),
     }
   }
 }

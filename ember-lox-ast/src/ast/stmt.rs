@@ -1,4 +1,4 @@
-use super::expr::{LiteralValue, Expr};
+use super::expr::{Expr, PosedLiteral};
 use crate::{
   visit::{Visitor, VisitorAcceptor},
   STR,
@@ -34,7 +34,7 @@ pub enum Stmt {
     expr: Expr,
   },
   Return {
-    keyword: LiteralValue,
+    keyword: PosedLiteral,
     value: Option<Expr>,
   },
   Variable {

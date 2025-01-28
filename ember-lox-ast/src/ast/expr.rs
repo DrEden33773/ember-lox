@@ -4,7 +4,7 @@ use crate::{
   STR,
 };
 use ember_lox_tokenizer::TokenKind;
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -14,7 +14,7 @@ pub enum Expr {
   },
   Binary {
     left: Box<Expr>,
-    op: Operator,
+    op: PosedOperator,
     right: Box<Expr>,
   },
   Call {
@@ -29,11 +29,11 @@ pub enum Expr {
     expr: Box<Expr>,
   },
   Literal {
-    val: LiteralValue,
+    val: PosedLiteral,
   },
   Logical {
     left: Box<Expr>,
-    op: Operator,
+    op: PosedOperator,
     right: Box<Expr>,
   },
   Set {
@@ -49,7 +49,7 @@ pub enum Expr {
     keyword: STR,
   },
   Unary {
-    op: Operator,
+    op: PosedOperator,
     right: Box<Expr>,
   },
   Var {
@@ -60,6 +60,15 @@ pub enum Expr {
 impl VisitorAcceptor for Expr {
   fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output {
     visitor.visit_expr(self)
+  }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PosedOperator(pub Operator, pub usize);
+
+impl From<(Operator, usize)> for PosedOperator {
+  fn from(value: (Operator, usize)) -> Self {
+    Self(value.0, value.1)
   }
 }
 
@@ -132,9 +141,18 @@ impl Display for Operator {
 }
 
 #[derive(Debug, Clone)]
+pub struct PosedLiteral(pub LiteralValue, pub usize);
+
+impl From<(LiteralValue, usize)> for PosedLiteral {
+  fn from(value: (LiteralValue, usize)) -> Self {
+    Self(value.0, value.1)
+  }
+}
+
+#[derive(Debug, Clone)]
 pub enum LiteralValue {
   Number(f64),
-  String(STR),
+  String(Arc<str>),
   Bool(bool),
   Nil,
 }
@@ -266,6 +284,31 @@ impl Display for LiteralValue {
       }
       LiteralValue::Bool(b) => write!(f, "{}", b),
       LiteralValue::Nil => write!(f, "nil"),
+    }
+  }
+}
+
+impl From<Option<&str>> for LiteralValue {
+  fn from(value: Option<&str>) -> Self {
+    match value {
+      Some(s) => LiteralValue::String(intern_string(s)),
+      None => LiteralValue::Nil,
+    }
+  }
+}
+impl From<Option<f64>> for LiteralValue {
+  fn from(value: Option<f64>) -> Self {
+    match value {
+      Some(n) => LiteralValue::Number(n),
+      None => LiteralValue::Nil,
+    }
+  }
+}
+impl From<Option<bool>> for LiteralValue {
+  fn from(value: Option<bool>) -> Self {
+    match value {
+      Some(b) => LiteralValue::Bool(b),
+      None => LiteralValue::Nil,
     }
   }
 }

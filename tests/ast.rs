@@ -1,34 +1,27 @@
 #[cfg(test)]
 pub mod ast_printer_test {
-  use ember_lox_ast::{
-    ast::{
-      expr::{self, Expr},
-      stmt::Stmt,
-    },
-    visit::VisitorAcceptor,
-    AstPrinter,
-  };
+  use ember_lox_ast::{ast::prelude::*, visit::VisitorAcceptor, AstPrinter};
   use ember_lox_rt::prelude::*;
 
   #[test]
   fn case1() {
     // var x = 1 + 2 * 3
     let expr = Stmt::Variable {
-      name: intern_string("x"),
+      name: (intern_string("x"), 1).into(),
       initializer: Expr::Binary {
         left: Expr::Literal {
-          val: expr::LiteralValue::Number(1.0),
+          val: (1.0.into(), 1).into(),
         }
         .into(),
-        op: expr::Operator::Plus,
+        op: (Operator::Plus, 1).into(),
         right: Expr::Binary {
           left: Expr::Literal {
-            val: expr::LiteralValue::Number(2.0),
+            val: (2.0.into(), 1).into(),
           }
           .into(),
-          op: expr::Operator::Multiply,
+          op: (Operator::Multiply, 1).into(),
           right: Expr::Literal {
-            val: expr::LiteralValue::Number(3.0),
+            val: (3.0.into(), 1).into(),
           }
           .into(),
         }
@@ -40,6 +33,6 @@ pub mod ast_printer_test {
     let mut printer = AstPrinter;
     let res = expr.accept(&mut printer);
 
-    assert_eq!(res, "(var x (+ 1 (* 2 3)))")
+    assert_eq!(res, "(var x (+ 1.0 (* 2.0 3.0)))")
   }
 }

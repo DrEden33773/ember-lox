@@ -3,11 +3,9 @@ use std::sync::{Arc, LazyLock, Weak};
 
 /// The maximum length of a string to be interned.
 pub const MAX_INTERN_STR_LEN: usize = 128;
-/// Immutable Str Reference
-pub type STR = Arc<str>;
 
 pub mod prelude {
-  pub use super::{intern_string, MAX_INTERN_STR_LEN, STR};
+  pub use super::{intern_string, MAX_INTERN_STR_LEN};
 }
 
 /// `String pool` for interning strings.

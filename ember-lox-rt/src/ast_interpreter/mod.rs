@@ -56,7 +56,7 @@ impl Visitor for Interpreter {
       Binary { left, op, right } => {
         let left = left.accept(self)?;
         let right = right.accept(self)?;
-        match op {
+        match op.0 {
           Plus => left.add(&right),
           Minus => left.sub(&right),
           Multiply => left.mul(&right),
@@ -67,23 +67,23 @@ impl Visitor for Interpreter {
           LessEqual => Ok(left.le(&right).into()),
           Equal => Ok(left.eq(&right).into()),
           NotEqual => Ok(left.ne(&right).into()),
-          _ => Err(format!("Invalid binary operator: {}", op)),
+          _ => Err(format!("Invalid binary operator: {}", op.0)),
         }
       }
       Call { callee, args } => todo!(),
       Get { obj, name } => todo!(),
       Grouping { expr } => expr.accept(self),
-      Literal { val } => Ok(val.to_owned()),
+      Literal { val } => Ok(val.0.to_owned()),
       Logical { left, op, right } => todo!(),
       Set { obj, name, val } => todo!(),
       Super { keyword: _, method } => todo!(),
       This { keyword: _ } => todo!(),
       Unary { op, right } => {
         let right = right.accept(self)?;
-        match op {
+        match op.0 {
           Minus => right.neg(),
           Not => right.not(),
-          _ => Err(format!("Invalid unary operator: {}", op)),
+          _ => Err(format!("Invalid unary operator: {}", op.0)),
         }
       }
       Var { name } => todo!(),
