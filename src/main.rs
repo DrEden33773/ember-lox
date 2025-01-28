@@ -1,6 +1,7 @@
 use ember_lox_ast::visit::VisitorAcceptor;
 use ember_lox_ast::AstPrinter;
 use ember_lox_parse::prelude::*;
+use ember_lox_rt::ast_interpreter::Interpreter;
 use std::env;
 use std::fs;
 
@@ -61,7 +62,17 @@ fn main() {
       let res = ast.accept(&mut printer);
       println!("{}", res);
     }
-    "evaluate" => unimplemented!(),
+    "evaluate" => {
+      let mut parser = new_parser_from_src_str(&src);
+      let Some(ast) = parser.parse() else {
+        std::process::exit(65)
+      };
+      let mut interpreter = Interpreter;
+      let Some(res) = ast.accept(&mut interpreter) else {
+        std::process::exit(70)
+      };
+      println!("{}", res);
+    }
     _ => eprintln!("Unknown command: {}", command),
   }
 }

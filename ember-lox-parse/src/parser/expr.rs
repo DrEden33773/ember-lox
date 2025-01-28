@@ -160,9 +160,12 @@ impl<'src> Parser<'src> {
       .into();
     }
     if self.match_kind(Literal { kind: Str }) {
+      // This should contains `"` at the start and end.
       let string = self.prev().unwrap().val;
+      debug_assert!(string.starts_with('"') && string.ends_with('"'));
+
       return Expr::Literal {
-        val: (string.into(), self.curr_line).into(),
+        val: (string[1..string.len() - 1].into(), self.curr_line).into(),
       }
       .into();
     }

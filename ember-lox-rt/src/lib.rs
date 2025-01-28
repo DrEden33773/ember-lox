@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock, Weak};
 
 pub mod ast_interpreter;
 pub mod bytecode_vm;
+pub mod error;
 
 /// The maximum length of a string to be interned.
 pub const MAX_INTERN_STR_LEN: usize = 128;

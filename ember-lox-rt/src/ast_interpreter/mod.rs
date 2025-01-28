@@ -10,10 +10,12 @@ use ember_lox_ast::{
 use std::cmp::{PartialEq, PartialOrd};
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
+use crate::error::report;
+
 pub struct Interpreter;
 
 impl Interpreter {
-  pub fn interpret<V: VisitorAcceptor>(root: &V) -> Result<LiteralValue, String> {
+  pub fn interpret<V: VisitorAcceptor>(root: &V) -> Option<LiteralValue> {
     let mut interpreter = Self;
     root.accept(&mut interpreter)
   }
@@ -21,7 +23,7 @@ impl Interpreter {
 
 #[allow(unused_variables)]
 impl Visitor for Interpreter {
-  type Output = Result<LiteralValue, String>;
+  type Output = Option<LiteralValue>;
 
   fn visit_stmt(&mut self, stmt: &Stmt) -> Self::Output {
     use Stmt::*;
@@ -57,23 +59,35 @@ impl Visitor for Interpreter {
         let left = left.accept(self)?;
         let right = right.accept(self)?;
         match op.0 {
-          Plus => left.add(&right),
-          Minus => left.sub(&right),
-          Multiply => left.mul(&right),
-          Divide => left.div(&right),
-          Greater => Ok(left.gt(&right).into()),
-          GreaterEqual => Ok(left.ge(&right).into()),
-          Less => Ok(left.lt(&right).into()),
-          LessEqual => Ok(left.le(&right).into()),
-          Equal => Ok(left.eq(&right).into()),
-          NotEqual => Ok(left.ne(&right).into()),
-          _ => Err(format!("Invalid binary operator: {}", op.0)),
+          Plus => match left.add(&right) {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          Minus => match left.sub(&right) {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          Multiply => match left.mul(&right) {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          Divide => match left.div(&right) {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          Greater => Some(left.gt(&right).into()),
+          GreaterEqual => Some(left.ge(&right).into()),
+          Less => Some(left.lt(&right).into()),
+          LessEqual => Some(left.le(&right).into()),
+          Equal => Some(left.eq(&right).into()),
+          NotEqual => Some(left.ne(&right).into()),
+          _ => report(op.1, &format!("Invalid binary operator: {}", op.0)),
         }
       }
       Call { callee, args } => todo!(),
       Get { obj, name } => todo!(),
       Grouping { expr } => expr.accept(self),
-      Literal { val } => Ok(val.0.to_owned()),
+      Literal { val } => Some(val.0.to_owned()),
       Logical { left, op, right } => todo!(),
       Set { obj, name, val } => todo!(),
       Super { keyword: _, method } => todo!(),
@@ -81,9 +95,15 @@ impl Visitor for Interpreter {
       Unary { op, right } => {
         let right = right.accept(self)?;
         match op.0 {
-          Minus => right.neg(),
-          Not => right.not(),
-          _ => Err(format!("Invalid unary operator: {}", op.0)),
+          Minus => match right.neg() {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          Not => match right.not() {
+            Ok(r) => r.into(),
+            Err(e) => report(op.1, &e),
+          },
+          _ => report(op.1, &format!("Invalid unary operator: {}", op.0)),
         }
       }
       Var { name } => todo!(),

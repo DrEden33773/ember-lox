@@ -5,7 +5,6 @@
 //! This API is unstable.
 
 pub mod ast;
-pub mod error;
 pub mod pool;
 pub mod visit;
 

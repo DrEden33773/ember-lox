@@ -277,10 +277,8 @@ impl Display for LiteralValue {
         write!(f, "{}", output)
       }
       LiteralValue::String(s) => {
-        // Tokenizer will gather `"` at the beginning and ending,
-        // but in the test case, we don't need to print them.
-        debug_assert!(s.starts_with('"') && s.ends_with('"'));
-        write!(f, "{}", &s[1..s.len() - 1])
+        // Has removed token's `"` at the beginning and end
+        write!(f, "{}", s)
       }
       LiteralValue::Bool(b) => write!(f, "{}", b),
       LiteralValue::Nil => write!(f, "nil"),
