@@ -5,12 +5,14 @@
 //! This API is unstable.
 
 pub mod ast;
+pub mod error;
+pub mod pool;
 pub mod visit;
 
 use crate::visit::{Visitor, VisitorAcceptor};
 use ast::expr::Expr;
 use ast::stmt::Stmt;
-use ember_lox_rt::prelude::*;
+use pool::prelude::*;
 
 pub struct AstPrinter;
 

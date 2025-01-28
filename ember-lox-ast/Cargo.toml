@@ -4,9 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
-[dependencies.ember-lox-rt]
-path = "../ember-lox-rt"
+dashmap = "6.1.0"
 
 [dependencies.ember-lox-tokenizer]
 path = "../ember-lox-tokenizer"

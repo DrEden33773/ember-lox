@@ -39,6 +39,7 @@ impl<'src> Parser<'src> {
     report_detail(self.curr_line, err_token.map(|e| e.val), err_msg);
   }
 
+  #[allow(dead_code)]
   fn consume_by_token(&mut self, token: Token, err_msg: &str) {
     if self.check_token(token) {
       self.advance();
@@ -49,6 +50,7 @@ impl<'src> Parser<'src> {
     report_detail(self.curr_line, err_token.map(|e| e.val), err_msg);
   }
 
+  #[allow(dead_code)]
   fn synchronize(&mut self) {
     self.advance();
 

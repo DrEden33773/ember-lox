@@ -16,3 +16,19 @@ fn test_gen_reserved_tok_methods() {
     }
   );
 }
+
+#[test]
+fn test_gen_reserved_tok_methods_2() {
+  let or_tok = Token::or_tok();
+  assert_eq!(
+    or_tok,
+    Token {
+      tag: TagToken {
+        kind: TokenKind::Identifier,
+        len: 2,
+        line: 0,
+      },
+      val: "or",
+    }
+  );
+}

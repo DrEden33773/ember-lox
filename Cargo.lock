@@ -70,7 +70,7 @@ dependencies = [
 name = "ember-lox-ast"
 version = "0.1.0"
 dependencies = [
- "ember-lox-rt",
+ "dashmap",
  "ember-lox-tokenizer",
 ]
 
@@ -88,6 +88,9 @@ name = "ember-lox-rt"
 version = "0.1.0"
 dependencies = [
  "dashmap",
+ "ember-lox-ast",
+ "ember-lox-parse",
+ "ember-lox-tokenizer",
 ]
 
 [[package]]

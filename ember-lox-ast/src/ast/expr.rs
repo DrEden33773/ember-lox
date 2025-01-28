@@ -1,9 +1,11 @@
-use crate::visit::{Visitor, VisitorAcceptor};
-use ember_lox_rt::prelude::*;
+use crate::{
+  pool::prelude::*,
+  visit::{Visitor, VisitorAcceptor},
+  STR,
+};
 use ember_lox_tokenizer::TokenKind;
 use std::fmt::Display;
 
-/// Box<Expr> => prevent recursive definition (infinite size)
 #[derive(Debug, Clone)]
 pub enum Expr {
   Assign {
@@ -109,12 +111,140 @@ impl TryFrom<TokenKind> for Operator {
   }
 }
 
+impl Display for Operator {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    use Operator::*;
+    let op_str = match self {
+      Plus => "+",
+      Minus => "-",
+      Multiply => "*",
+      Divide => "/",
+      Equal => "==",
+      NotEqual => "!=",
+      Greater => ">",
+      GreaterEqual => ">=",
+      Less => "<",
+      LessEqual => "<=",
+      Not => "!",
+    };
+    f.write_str(op_str)
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum LiteralValue {
   Number(f64),
   String(STR),
   Bool(bool),
   Nil,
+}
+
+impl LiteralValue {
+  pub fn is_true(&self) -> bool {
+    match self {
+      LiteralValue::Bool(b) => *b,
+      LiteralValue::Nil => false,
+      _ => true,
+    }
+  }
+
+  pub fn get_type(&self) -> &str {
+    match self {
+      LiteralValue::Number(_) => "number",
+      LiteralValue::String(_) => "string",
+      LiteralValue::Bool(_) => "bool",
+      LiteralValue::Nil => "nil",
+    }
+  }
+}
+
+impl std::cmp::PartialOrd for LiteralValue {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    match (self, other) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => a.partial_cmp(b),
+      _ => None,
+    }
+  }
+}
+
+impl std::cmp::PartialEq for LiteralValue {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => a == b,
+      (LiteralValue::String(a), LiteralValue::String(b)) => a == b,
+      (LiteralValue::Bool(a), LiteralValue::Bool(b)) => a == b,
+      (LiteralValue::Nil, LiteralValue::Nil) => true,
+      _ => false,
+    }
+  }
+}
+
+impl std::ops::Add for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn add(self, rhs: &LiteralValue) -> Self::Output {
+    match (self, rhs) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok(LiteralValue::Number(a + b)),
+      (LiteralValue::String(a), LiteralValue::String(b)) => {
+        let new = a.to_string() + b.as_ref();
+        Ok(new.as_str().into())
+      }
+      _ => Err(format!("Operands must be numbers.")),
+    }
+  }
+}
+
+impl std::ops::Sub for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn sub(self, rhs: &LiteralValue) -> Self::Output {
+    match (self, rhs) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok(LiteralValue::Number(a - b)),
+      _ => Err(format!("Operands must be numbers.")),
+    }
+  }
+}
+
+impl std::ops::Mul for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn mul(self, rhs: Self) -> Self::Output {
+    match (self, rhs) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok(LiteralValue::Number(a * b)),
+      _ => Err(format!("Operands must be numbers.")),
+    }
+  }
+}
+
+impl std::ops::Div for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn div(self, rhs: Self) -> Self::Output {
+    match (self, rhs) {
+      (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok(LiteralValue::Number(a / b)),
+      _ => Err(format!("Operands must be numbers.")),
+    }
+  }
+}
+
+impl std::ops::Neg for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn neg(self) -> Self::Output {
+    match self {
+      LiteralValue::Number(n) => Ok(LiteralValue::Number(-n)),
+      _ => Err(format!("Operand must be a number.")),
+    }
+  }
+}
+
+impl std::ops::Not for &LiteralValue {
+  type Output = Result<LiteralValue, String>;
+
+  fn not(self) -> Self::Output {
+    let res = self.is_true();
+    Ok(LiteralValue::Bool(!res))
+  }
 }
 
 impl Display for LiteralValue {
@@ -153,25 +283,5 @@ impl From<f64> for LiteralValue {
 impl From<&str> for LiteralValue {
   fn from(value: &str) -> Self {
     LiteralValue::String(intern_string(value))
-  }
-}
-
-impl Display for Operator {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    use Operator::*;
-    let op_str = match self {
-      Plus => "+",
-      Minus => "-",
-      Multiply => "*",
-      Divide => "/",
-      Equal => "==",
-      NotEqual => "!=",
-      Greater => ">",
-      GreaterEqual => ">=",
-      Less => "<",
-      LessEqual => "<=",
-      Not => "!",
-    };
-    f.write_str(op_str)
   }
 }

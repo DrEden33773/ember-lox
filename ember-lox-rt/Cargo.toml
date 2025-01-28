@@ -5,3 +5,12 @@ edition = "2021"
 
 [dependencies]
 dashmap = "6.1.0"
+
+[dependencies.ember-lox-parse]
+path = "../ember-lox-parse"
+
+[dependencies.ember-lox-tokenizer]
+path = "../ember-lox-tokenizer"
+
+[dependencies.ember-lox-ast]
+path = "../ember-lox-ast"

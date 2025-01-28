@@ -1,11 +1,12 @@
-use super::expr::{Expr, LiteralValue};
-use crate::visit::{Visitor, VisitorAcceptor};
-use ember_lox_rt::prelude::*;
+use super::expr::{LiteralValue, Expr};
+use crate::{
+  visit::{Visitor, VisitorAcceptor},
+  STR,
+};
 
 pub type VariableField = (STR, Option<Expr>);
 pub type FunctionFiled = (STR, Vec<STR>, Vec<Stmt>);
 
-/// Box<Stmt> => prevent recursive definition (infinite size)
 #[derive(Debug, Clone)]
 pub enum Stmt {
   Block {
