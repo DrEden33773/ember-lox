@@ -10,7 +10,7 @@ impl<'src> Parser<'src> {
 
   /// ```
   /// assignment → IDENTIFIER "=" assignment
-  ///            | equality ;
+  ///            |  equality ;
   /// ```
   fn assignment(&mut self) -> Option<Expr> {
     let expr = self.equality()?;
@@ -130,7 +130,7 @@ impl<'src> Parser<'src> {
 
   /// ```
   /// unary → ( "!" | "-" ) unary
-  ///       | primary ;
+  ///       |  primary ;
   /// ```
   fn unary(&mut self) -> Option<Expr> {
     if self.match_kind_in(&[TokenKind::Bang, TokenKind::Minus]) {
@@ -150,9 +150,9 @@ impl<'src> Parser<'src> {
 
   /// ```
   /// primary → "true" | "false" | "nil"
-  ///         | NUMBER | STRING
-  ///         | "(" expression ")"
-  ///         | IDENTIFIER ;   
+  ///         |  NUMBER | STRING
+  ///         |  "(" expression ")"
+  ///         |  IDENTIFIER ;   
   /// ```
   fn primary(&mut self) -> Option<Expr> {
     use LiteralKind::*;

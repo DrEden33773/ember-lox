@@ -8,11 +8,10 @@ pub mod ast;
 pub mod pool;
 pub mod visit;
 
-use std::sync::Arc;
-
 use crate::visit::{Visitor, VisitorAcceptor};
 use ast::expr::Expr;
 use ast::stmt::Stmt;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct STR(pub Arc<str>, pub usize);
@@ -29,53 +28,50 @@ impl From<(&str, usize)> for STR {
   }
 }
 
+#[derive(Default)]
 pub struct AstPrinter;
 
-fn stringify_multi_lines(starting: &str, contents: &[String], ending: &str) -> String {
-  let mut res = starting.to_string();
-  let new_line = format!("\n{}", "".repeat(starting.len()));
-  for (i, content) in contents.iter().enumerate() {
-    match i {
-      i if i == 0 => res += "::: ",
-      i if i == contents.len() - 1 => res += " └─ ",
-      _ => res += " ├─ ",
-    }
-    res += content;
-    res += if i == contents.len() - 1 {
-      ending
-    } else {
-      &new_line
-    };
+impl AstPrinter {
+  fn stringify_multi_lines(&mut self, starting: &str, contents: &[String], ending: &str) -> String {
+    let len = contents.len();
+    let contents = contents
+      .iter()
+      .enumerate()
+      .map(|(i, s)| format!("    {}", s) + if i != len - 1 { "" } else { ending })
+      .collect::<Vec<_>>();
+    let mut vec = vec![starting.to_string() + "::"];
+    vec.extend(contents);
+    vec.join("\n")
   }
-  res
-}
 
-fn stringify_function(
-  p: &mut AstPrinter,
-  name: &STR,
-  params: &Vec<STR>,
-  body: &Vec<Stmt>,
-) -> String {
-  let params = params
-    .iter()
-    .map(|s| s.0.as_ref())
-    .collect::<Vec<_>>()
-    .join(", ");
-  let body = body.iter().map(|s| s.accept(p)).collect::<Vec<_>>();
-  let starting = if name.0.is_empty() {
-    "(function ".to_string()
-  } else {
-    format!("(function {}({}) ", name.0, params)
-  };
-  stringify_multi_lines(&starting, &body, ")")
-}
+  fn stringify_function(&mut self, name: &STR, params: &Vec<STR>, body: &Vec<Stmt>) -> String {
+    let params = params
+      .iter()
+      .map(|s| s.0.as_ref())
+      .collect::<Vec<_>>()
+      .join(", ");
+    let starting = if name.0.is_empty() {
+      "(function ".to_string()
+    } else {
+      format!("(function {}({}) ", name.0, params)
+    };
+    let body = body
+      .iter()
+      .map(|s| {
+        let res = s.accept(self);
+        res
+      })
+      .collect::<Vec<_>>();
+    self.stringify_multi_lines(&starting, &body, ")")
+  }
 
-fn stringify_variable(p: &mut AstPrinter, name: &STR, initializer: &Option<Expr>) -> String {
-  let init_str = initializer
-    .as_ref()
-    .map(|e| e.accept(p))
-    .unwrap_or("nil".to_string());
-  format!("(var {} {})", name.0, init_str)
+  fn stringify_variable(&mut self, name: &STR, initializer: &Option<Expr>) -> String {
+    let init_str = initializer
+      .as_ref()
+      .map(|e| e.accept(self))
+      .unwrap_or("nil".to_string());
+    format!("(var {} {})", name.0, init_str)
+  }
 }
 
 impl Visitor for AstPrinter {
@@ -86,8 +82,10 @@ impl Visitor for AstPrinter {
 
     match stmt {
       Block { stmts } => {
+        let starting = "(block ";
         let stmts = stmts.iter().map(|s| s.accept(self)).collect::<Vec<_>>();
-        stringify_multi_lines("(block ", &stmts, ")")
+        dbg!(&stmts);
+        self.stringify_multi_lines(starting, &stmts, ")")
       }
       Class {
         name,
@@ -98,19 +96,21 @@ impl Visitor for AstPrinter {
           .as_ref()
           .map(|(name, _)| name.0.to_string())
           .unwrap_or_default();
-        let methods = methods
-          .iter()
-          .map(|(name, params, body)| stringify_function(self, name, params, body))
-          .collect::<Vec<_>>();
         let starting = if superclass.is_empty() {
           format!("(class {} ", name.0)
         } else {
           format!("(class {} extends {} ", name.0, superclass)
         };
-        stringify_multi_lines(&starting, &methods, ")")
+
+        let methods = methods
+          .iter()
+          .map(|(name, params, body)| self.stringify_function(name, params, body))
+          .collect::<Vec<_>>();
+
+        self.stringify_multi_lines(&starting, &methods, ")")
       }
       Expression { expr } => expr.accept(self),
-      Function { name, params, body } => stringify_function(self, name, params, body),
+      Function { name, params, body } => self.stringify_function(name, params, body),
       If {
         cond,
         then_branch,
@@ -138,7 +138,7 @@ impl Visitor for AstPrinter {
         }
       ),
       Variable { name, initializer } => {
-        let str = stringify_variable(self, name, initializer);
+        let str = self.stringify_variable(name, initializer);
         format!("{}", str)
       }
       While { cond, body } => format!("(while {} {})", cond.accept(self), body.accept(self)),

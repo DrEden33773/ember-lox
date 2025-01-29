@@ -5,7 +5,6 @@ use crate::{
 use ember_lox_ast::ast::prelude::*;
 use ember_lox_tokenizer::prelude::*;
 
-pub mod decl;
 pub mod expr;
 pub mod stmt;
 pub mod util;

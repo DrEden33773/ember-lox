@@ -3,13 +3,43 @@ use super::*;
 impl<'src> Parser<'src> {
   /// ```
   /// statement → exprStmt
-  ///           |  printStmt ;
+  ///           |  printStmt
+  ///           |  block ;
   /// ```
   fn statement(&mut self) -> Option<Stmt> {
     if self.match_token(Token::print_tok()) {
       return self.print();
     }
+    if self.match_kind(TokenKind::OpenBrace) {
+      return Stmt::Block {
+        stmts: self.block()?,
+      }
+      .into();
+    }
+
     self.expr_stmt()
+  }
+
+  /// ```
+  /// block → "{" declaration* "}" ;
+  /// ```
+  fn block(&mut self) -> Option<Vec<Stmt>> {
+    let mut stmts = vec![];
+    let mut failed_parsing_decl = false;
+    while !self.check_kind(TokenKind::CloseBrace) && !self.is_at_end() {
+      // To delay the raise of parsing error.
+      if let Some(decl) = self.declaration() {
+        stmts.push(decl);
+      } else {
+        failed_parsing_decl = true;
+      }
+    }
+    self.consume_by_kind(TokenKind::CloseBrace, "Expect '}' after block.");
+    if !failed_parsing_decl {
+      stmts.into()
+    } else {
+      None
+    }
   }
 
   /// ```
@@ -23,7 +53,7 @@ impl<'src> Parser<'src> {
 
   /// ```
   /// declaration → varDecl
-  ///             | statement ;
+  ///             |  statement ;
   /// ```
   pub(crate) fn declaration(&mut self) -> Option<Stmt> {
     if self.match_token(Token::var_tok()) {

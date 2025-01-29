@@ -8,4 +8,15 @@ pub trait Visitor {
 
 pub trait VisitorAcceptor {
   fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output;
+  fn wrapped_accept<V: Visitor>(
+    &self,
+    visitor: &mut V,
+    mut before: impl FnMut(),
+    mut after: impl FnMut(),
+  ) -> V::Output {
+    before();
+    let res = self.accept(visitor);
+    after();
+    res
+  }
 }
