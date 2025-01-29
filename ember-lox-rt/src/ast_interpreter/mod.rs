@@ -61,18 +61,16 @@ impl Interpreter {
     root.accept(self);
   }
 
-  pub fn execute_block(&mut self, stmts: &[Stmt], env: Environment) {
-    let prev_env = self.env.clone();
-    self.env = env;
+  pub fn execute_block(&mut self, stmts: &[Stmt]) {
+    self.env.new_enclosed();
     for stmt in stmts {
       self.execute(stmt);
       if self.has_runtime_error {
-        // Reset the environment to the previous one.
-        self.env = prev_env;
+        self.env.drop_innermost_scope();
         return;
       }
     }
-    self.env = prev_env;
+    self.env.drop_innermost_scope();
   }
 }
 
@@ -85,7 +83,7 @@ impl Visitor for Interpreter {
 
     match stmt {
       Block { stmts } => {
-        self.execute_block(stmts, Environment::new_enclosed(self.env.clone()));
+        self.execute_block(stmts);
         None // Blocks don't return a value.
       }
       Class {
