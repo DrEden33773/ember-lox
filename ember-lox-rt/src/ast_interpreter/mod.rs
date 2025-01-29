@@ -60,6 +60,20 @@ impl Interpreter {
   pub fn execute(&mut self, root: &Stmt) {
     root.accept(self);
   }
+
+  pub fn execute_block(&mut self, stmts: &[Stmt], env: Environment) {
+    let prev_env = self.env.clone();
+    self.env = env;
+    for stmt in stmts {
+      self.execute(stmt);
+      if self.has_runtime_error {
+        // Reset the environment to the previous one.
+        self.env = prev_env;
+        return;
+      }
+    }
+    self.env = prev_env;
+  }
 }
 
 #[allow(unused_variables)]
@@ -70,7 +84,10 @@ impl Visitor for Interpreter {
     use Stmt::*;
 
     match stmt {
-      Block { stmts } => todo!(),
+      Block { stmts } => {
+        self.execute_block(stmts, Environment::new_enclosed(self.env.clone()));
+        None // Blocks don't return a value.
+      }
       Class {
         name,
         superclass,

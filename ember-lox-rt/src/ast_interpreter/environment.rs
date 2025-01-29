@@ -12,6 +12,13 @@ pub struct Environment {
 }
 
 impl Environment {
+  pub fn new_enclosed(enclosing: Environment) -> Self {
+    Self {
+      enclosing: Some(Box::new(enclosing)),
+      values: DashMap::new(),
+    }
+  }
+
   pub fn assign(&mut self, name: STR, value: Value) -> Option<Value> {
     if !self.values.contains_key(&name) {
       // Recursively search for the variable in the enclosing environment.

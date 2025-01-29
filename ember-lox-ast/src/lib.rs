@@ -13,6 +13,11 @@ use ast::expr::Expr;
 use ast::stmt::Stmt;
 use std::sync::Arc;
 
+#[cfg(target_os = "windows")]
+const NEWLINE_SEQ: &str = "\r\n";
+#[cfg(not(target_os = "windows"))]
+const NEWLINE_SEQ: &str = "\n";
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct STR(pub Arc<str>, pub usize);
 
@@ -37,11 +42,20 @@ impl AstPrinter {
     let contents = contents
       .iter()
       .enumerate()
-      .map(|(i, s)| format!("    {}", s) + if i != len - 1 { "" } else { ending })
+      .map(|(i, s)| {
+        // Note that `s` may contains `\n`, it should be splitted.
+        // That's to update each lines indent, and concat it back to one.
+        let indented = s
+          .split(NEWLINE_SEQ)
+          .map(|s| format!("    {}", s))
+          .collect::<Vec<_>>()
+          .join(NEWLINE_SEQ);
+        format!("{}", indented) + if i != len - 1 { "" } else { ending }
+      })
       .collect::<Vec<_>>();
     let mut vec = vec![starting.to_string() + "::"];
     vec.extend(contents);
-    vec.join("\n")
+    vec.join(NEWLINE_SEQ)
   }
 
   fn stringify_function(&mut self, name: &STR, params: &Vec<STR>, body: &Vec<Stmt>) -> String {
@@ -84,7 +98,6 @@ impl Visitor for AstPrinter {
       Block { stmts } => {
         let starting = "(block ";
         let stmts = stmts.iter().map(|s| s.accept(self)).collect::<Vec<_>>();
-        dbg!(&stmts);
         self.stringify_multi_lines(starting, &stmts, ")")
       }
       Class {

@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 
 const TEST_MODE: bool = false;
-const TEST_CMD: &str = "run";
+const TEST_CMD: &str = "parse";
 const TEST_FILENAME: &str = "test.lox";
 
 fn main() {
@@ -32,7 +32,8 @@ fn main() {
     eprintln!("Failed to read file `{}`", filename);
     String::new()
   });
-  if matches!(command, "parse" | "evaluate") && !src.ends_with(";") {
+  // `}` cannot followed by `;`
+  if matches!(command, "parse" | "evaluate") && !src.ends_with(";") && !src.ends_with("}") {
     // Non-strict mode `REPL` allows the user to omit the semicolon.
     // But only `strict` strategy offered, so we add a trailing one.
     src.push(';');
