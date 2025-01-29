@@ -1,5 +1,3 @@
-use ember_lox_ast::pool::intern_string;
-
 use super::*;
 
 impl<'src> Parser<'src> {
