@@ -12,3 +12,6 @@ target/
 
 # .lox files
 *.lox
+
+# VSCodeCounter
+.VSCodeCounter/

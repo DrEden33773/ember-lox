@@ -32,6 +32,7 @@ impl<'src> Parser<'src> {
         self.synchronize();
         return None;
       }
+      return var; // Remember to return the `var_decl` statement.
     }
     let stmt = self.statement();
     if stmt.is_none() {

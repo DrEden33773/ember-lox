@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 
 const TEST_MODE: bool = false;
-const TEST_CMD: &str = "parse";
+const TEST_CMD: &str = "run";
 const TEST_FILENAME: &str = "test.lox";
 
 fn main() {

@@ -1,11 +1,40 @@
+use ember_lox_ast::pool::intern_string;
+
 use super::*;
 
 impl<'src> Parser<'src> {
   /// ```
-  /// expression → equality ;
+  /// expression → assignment ;
   /// ```
   pub(crate) fn expression(&mut self) -> Option<Expr> {
-    self.equality()
+    self.assignment()
+  }
+
+  /// ```
+  /// assignment → IDENTIFIER "=" assignment
+  ///            | equality ;
+  /// ```
+  fn assignment(&mut self) -> Option<Expr> {
+    let expr = self.equality()?;
+
+    if self.match_kind(TokenKind::Eq) {
+      let equal_token = self.prev()?.to_owned();
+      let line = equal_token.tag.line;
+      let val = self.assignment()?;
+
+      if let Expr::Var { name } = expr {
+        return Expr::Assign {
+          name,
+          val: val.into(),
+        }
+        .into();
+      }
+
+      self.had_parsing_error = true;
+      report_token(line, Some(&equal_token), "Invalid assignment target.");
+    }
+
+    Some(expr)
   }
 
   /// ```

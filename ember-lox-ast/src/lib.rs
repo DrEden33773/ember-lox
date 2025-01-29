@@ -74,7 +74,7 @@ fn stringify_variable(p: &mut AstPrinter, name: &STR, initializer: &Option<Expr>
   let init_str = initializer
     .as_ref()
     .map(|e| e.accept(p))
-    .unwrap_or_default();
+    .unwrap_or("nil".to_string());
   format!("(var {} {})", name.0, init_str)
 }
 
@@ -137,7 +137,10 @@ impl Visitor for AstPrinter {
           format!(" {}", value.as_ref().unwrap().accept(self))
         }
       ),
-      Variable { name, initializer } => stringify_variable(self, name, initializer),
+      Variable { name, initializer } => {
+        let str = stringify_variable(self, name, initializer);
+        format!("{}", str)
+      }
       While { cond, body } => format!("(while {} {})", cond.accept(self), body.accept(self)),
     }
   }
