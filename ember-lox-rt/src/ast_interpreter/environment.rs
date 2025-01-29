@@ -1,39 +1,36 @@
 use dashmap::{mapref::one::Ref, DashMap};
 use ember_lox_ast::ast::prelude::*;
-use std::{
-  collections::LinkedList,
-  sync::{Arc, Mutex},
-};
+use std::{collections::LinkedList, sync::Arc};
 
 pub type Value = LiteralValue;
 type STR = Arc<str>;
 
 #[derive(Debug, Default, Clone)]
-pub struct EnvironmentFrame {
+pub struct EnvFrame {
   pub(crate) values: DashMap<STR, Value>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Environment {
+pub struct Env {
   /// Direction: Inner -> Outer
-  env_chain: LinkedList<EnvironmentFrame>,
+  env_chain: LinkedList<EnvFrame>,
 }
 
-impl Default for Environment {
+impl Default for Env {
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl Environment {
+impl Env {
   pub fn new() -> Self {
-    Self {
-      env_chain: LinkedList::new(),
-    }
+    let mut env_chain = LinkedList::new();
+    env_chain.push_front(EnvFrame::default());
+    Self { env_chain }
   }
 
   pub fn new_enclosed(&mut self) {
-    self.env_chain.push_front(EnvironmentFrame::default());
+    self.env_chain.push_front(EnvFrame::default());
   }
 
   pub fn drop_innermost_scope(&mut self) {

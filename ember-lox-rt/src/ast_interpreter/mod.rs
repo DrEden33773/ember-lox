@@ -8,7 +8,7 @@ use ember_lox_ast::{
   ast::prelude::*,
   visit::{Visitor, VisitorAcceptor},
 };
-use environment::Environment;
+use environment::Env;
 use std::cmp::{PartialEq, PartialOrd};
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
@@ -16,7 +16,7 @@ pub mod environment;
 
 #[derive(Default)]
 pub struct Interpreter {
-  env: Environment,
+  env: Env,
   has_runtime_error: bool,
   is_in_repl: bool,
 }
