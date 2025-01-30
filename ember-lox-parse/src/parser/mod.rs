@@ -1,6 +1,6 @@
 use crate::{
   error::{report_detail, report_token},
-  Token,
+  Token, RESERVED_WORDS,
 };
 use ember_lox_ast::ast::prelude::*;
 use ember_lox_tokenizer::prelude::*;
@@ -132,6 +132,13 @@ impl<'src> Parser<'src> {
     tokens.iter().any(|&t| self.check_token(t))
   }
 
+  /// Returns `true` if the current token is an identifier and not a reserved word.
+  fn check_non_keyword_identifier(&self) -> bool {
+    self.peek().map_or(false, |t| {
+      t.tag.kind == TokenKind::Identifier && !RESERVED_WORDS.contains(&t.val)
+    })
+  }
+
   /// Returns `true` if the current token's kind is of the given ones.
   ///
   /// Note that this method will consume the token if return `true`.
@@ -140,6 +147,17 @@ impl<'src> Parser<'src> {
   }
   fn match_kind(&mut self, token_kind: TokenKind) -> bool {
     let is_matched = self.peek().map_or(false, |t| t.tag.kind == token_kind);
+    if is_matched {
+      self.advance();
+    }
+    is_matched
+  }
+
+  /// Returns `true` if the current token is an identifier and not a reserved word.
+  ///
+  /// Note that this method will consume the token if return `true`.
+  fn match_non_keyword_identifier(&mut self) -> bool {
+    let is_matched = self.check_non_keyword_identifier();
     if is_matched {
       self.advance();
     }

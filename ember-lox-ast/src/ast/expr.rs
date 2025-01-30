@@ -226,14 +226,6 @@ impl std::ops::Add for &LiteralValue {
         let new = a.to_string() + b.as_ref();
         Ok(new.as_str().into())
       }
-      // (LiteralValue::String(a), LiteralValue::Number(b)) => {
-      //   let new = a.to_string() + b.to_string().as_str();
-      //   Ok(new.as_str().into())
-      // }
-      // (LiteralValue::Number(a), LiteralValue::String(b)) => {
-      //   let new = a.to_string() + b.as_ref();
-      //   Ok(new.as_str().into())
-      // }
       _ => Err(format!("Operands must be numbers.")),
     }
   }

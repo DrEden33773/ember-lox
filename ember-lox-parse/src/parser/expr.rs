@@ -16,7 +16,7 @@ impl<'src> Parser<'src> {
     let expr = self.or()?;
 
     if self.match_kind(TokenKind::Eq) {
-      let equal_token = self.prev()?.to_owned();
+      let equal_token = self.prev().unwrap().to_owned();
       let line = equal_token.tag.line;
       let val = self.assignment()?;
 
@@ -238,7 +238,7 @@ impl<'src> Parser<'src> {
       .into();
     }
 
-    if self.match_kind(TokenKind::Identifier) {
+    if self.match_non_keyword_identifier() {
       let name = self.prev()?;
       return Expr::Var {
         name: (name.val, name.tag.line).into(),

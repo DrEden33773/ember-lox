@@ -1,5 +1,7 @@
 use super::*;
 
+recognizition;
+
 impl<'src> Parser<'src> {
   /// ```
   /// statement → exprStmt
@@ -104,16 +106,15 @@ impl<'src> Parser<'src> {
     self.consume_by_kind(TokenKind::CloseParen, "Expect ')' after if condition.");
 
     let then_branch = self.statement()?;
-    let else_branch = if self.match_token(Token::else_tok()) {
-      Some(self.statement()?)
-    } else {
-      None
-    };
+    let mut else_branch = None;
+    if self.match_token(Token::else_tok()) {
+      else_branch = Some(self.statement()?);
+    }
 
     Stmt::If {
       cond,
       then_branch: then_branch.into(),
-      else_branch: else_branch.map(|stmt| stmt.into()),
+      else_branch: Some(else_branch?.into()),
     }
     .into()
   }
