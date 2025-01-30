@@ -1,7 +1,5 @@
 use super::*;
 
-recognizition;
-
 impl<'src> Parser<'src> {
   /// ```
   /// statement → exprStmt
