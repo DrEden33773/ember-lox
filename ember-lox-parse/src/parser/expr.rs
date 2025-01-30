@@ -10,10 +10,10 @@ impl<'src> Parser<'src> {
 
   /// ```
   /// assignment → IDENTIFIER "=" assignment
-  ///            |  equality ;
+  ///            |  logic_or ;
   /// ```
   fn assignment(&mut self) -> Option<Expr> {
-    let expr = self.equality()?;
+    let expr = self.or()?;
 
     if self.match_kind(TokenKind::Eq) {
       let equal_token = self.prev()?.to_owned();
@@ -30,6 +30,45 @@ impl<'src> Parser<'src> {
 
       self.had_parsing_error = true;
       report_token(line, Some(&equal_token), "Invalid assignment target.");
+    }
+
+    Some(expr)
+  }
+
+  /// ```
+  /// logic_or → logic_and ( "or" logic_and )* ;
+  /// ```
+  fn or(&mut self) -> Option<Expr> {
+    let mut expr = self.and()?;
+
+    while self.match_token(Token::or_tok()) {
+      let or_op = self.prev().unwrap().to_owned();
+      let right = self.and()?;
+      expr = Expr::Logical {
+        left: expr.into(),
+        op: (Operator::Or, or_op.tag.line).into(),
+        right: right.into(),
+      }
+    }
+
+    Some(expr)
+  }
+
+  /// ```
+  /// logic_and → equality ( "and" equality )* ;
+  /// ```
+  fn and(&mut self) -> Option<Expr> {
+    let mut expr = self.equality()?;
+
+    while self.match_token(Token::and_tok()) {
+      let and_op = self.prev().unwrap().to_owned();
+      let right = self.equality()?;
+      expr = Expr::Logical {
+        left: expr.into(),
+        op: (Operator::And, and_op.tag.line).into(),
+        right: right.into(),
+      }
+      .into();
     }
 
     Some(expr)

@@ -3,7 +3,7 @@ use ember_lox_tokenizer::prelude::*;
 
 #[test]
 fn test_gen_reserved_tok_methods() {
-  let and_tok = Token::and_tok();
+  let and_tok = Token::or_tok();
   assert_eq!(
     and_tok,
     Token {

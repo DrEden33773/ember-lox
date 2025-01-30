@@ -1,19 +1,19 @@
 use dashmap::{mapref::one::Ref, DashMap};
 use ember_lox_ast::ast::prelude::*;
-use std::{collections::LinkedList, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 pub type Value = LiteralValue;
 type STR = Arc<str>;
 
 #[derive(Debug, Default, Clone)]
 pub struct EnvFrame {
-  pub(crate) values: DashMap<STR, Value>,
+  values: DashMap<STR, Value>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Env {
-  /// Direction: Inner -> Outer
-  env_chain: LinkedList<EnvFrame>,
+  /// Direction: `Innermost -> ... -> Outermost`
+  env_chain: VecDeque<EnvFrame>,
 }
 
 impl Default for Env {
@@ -24,7 +24,7 @@ impl Default for Env {
 
 impl Env {
   pub fn new() -> Self {
-    let mut env_chain = LinkedList::new();
+    let mut env_chain = VecDeque::new();
     env_chain.push_front(EnvFrame::default());
     Self { env_chain }
   }

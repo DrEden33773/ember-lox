@@ -105,7 +105,15 @@ impl Visitor for Interpreter {
         cond,
         then_branch,
         else_branch,
-      } => todo!(),
+      } => {
+        let cond = cond.accept(self)?;
+        if cond.is_true() {
+          self.execute(then_branch);
+        } else if let Some(else_branch) = else_branch {
+          self.execute(else_branch);
+        }
+        None // If statements don't return a value.
+      }
       Print { expr } => {
         let Some(val) = expr.accept(self) else {
           return self.runtime_error();
@@ -126,7 +134,15 @@ impl Visitor for Interpreter {
         self.env.define(name.0.to_owned(), val);
         None // Variable declarations don't return a value.
       }
-      While { cond, body } => todo!(),
+      While { cond, body } => {
+        while cond.accept(self)?.is_true() {
+          self.execute(body);
+          if self.has_runtime_error {
+            return None;
+          }
+        }
+        None // While loops don't return a value.
+      }
     }
   }
 
@@ -189,7 +205,19 @@ impl Visitor for Interpreter {
       Get { obj, name } => todo!(),
       Grouping { expr } => expr.accept(self),
       Literal { val } => Some(val.0.to_owned()),
-      Logical { left, op, right } => todo!(),
+      Logical { left, op, right } => {
+        let left = left.accept(self)?;
+        if let Operator::Or = op.0 {
+          if left.is_true() {
+            return left.into();
+          }
+        } else {
+          if !left.is_true() {
+            return left.into();
+          }
+        }
+        right.accept(self)
+      }
       Set { obj, name, val } => todo!(),
       Super { keyword: _, method } => todo!(),
       This { keyword: _ } => todo!(),

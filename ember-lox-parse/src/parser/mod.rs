@@ -115,7 +115,7 @@ impl<'src> Parser<'src> {
 
   /// Returns `true` if the current token's kind is of the given one.
   ///
-  /// Unlike [Parser::_match] this method does not consume the token.
+  /// Unlike [Parser::match_kind] this method does not consume the token.
   fn check_kind(&self, token_kind: TokenKind) -> bool {
     self.peek().map_or(false, |t| t.tag.kind == token_kind)
   }

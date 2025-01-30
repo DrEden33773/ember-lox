@@ -99,6 +99,11 @@ pub enum Operator {
   LessEqual,
   /// !
   Not,
+
+  /// `or`
+  Or,
+  // `and`
+  And,
 }
 
 impl TryFrom<TokenKind> for Operator {
@@ -138,6 +143,8 @@ impl Display for Operator {
       Less => "<",
       LessEqual => "<=",
       Not => "!",
+      Or => "or",
+      And => "and",
     };
     f.write_str(op_str)
   }
@@ -216,6 +223,14 @@ impl std::ops::Add for &LiteralValue {
     match (self, rhs) {
       (LiteralValue::Number(a), LiteralValue::Number(b)) => Ok(LiteralValue::Number(a + b)),
       (LiteralValue::String(a), LiteralValue::String(b)) => {
+        let new = a.to_string() + b.as_ref();
+        Ok(new.as_str().into())
+      }
+      (LiteralValue::String(a), LiteralValue::Number(b)) => {
+        let new = a.to_string() + b.to_string().as_str();
+        Ok(new.as_str().into())
+      }
+      (LiteralValue::Number(a), LiteralValue::String(b)) => {
         let new = a.to_string() + b.as_ref();
         Ok(new.as_str().into())
       }

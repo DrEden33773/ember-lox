@@ -129,17 +129,28 @@ impl Visitor for AstPrinter {
         then_branch,
         else_branch,
       } => {
-        let if_then = format!(
-          "(if {} then {}",
-          cond.accept(self),
-          then_branch.accept(self),
-        );
-        let else_ = if let Some(else_branch) = else_branch {
-          format!(" else {})", else_branch.accept(self))
+        // let if_then = format!(
+        //   "(if {} then {}",
+        //   cond.accept(self),
+        //   then_branch.accept(self),
+        // );
+        // let else_ = if let Some(else_branch) = else_branch {
+        //   format!("\n else {})", else_branch.accept(self))
+        // } else {
+        //   ")".to_string()
+        // };
+        // format!("{}{}", if_then, else_)
+        let if_then_starting = format!("(if {} then ", cond.accept(self));
+        let then_content = then_branch.accept(self);
+        if let Some(else_branch) = else_branch {
+          let if_then = self.stringify_multi_lines(&if_then_starting, &[then_content], NEWLINE_SEQ);
+          let else_content = else_branch.accept(self);
+          let else_ = self.stringify_multi_lines(" else ", &[else_content], ")");
+          format!("{}{}", if_then, else_)
         } else {
-          ")".to_string()
-        };
-        format!("{}{}", if_then, else_)
+          let if_then = self.stringify_multi_lines(&if_then_starting, &[then_content], ")");
+          format!("{}", if_then)
+        }
       }
       Print { expr } => format!("(print {})", expr.accept(self)),
       Return { keyword: _, value } => format!(
@@ -154,7 +165,11 @@ impl Visitor for AstPrinter {
         let str = self.stringify_variable(name, initializer);
         format!("{}", str)
       }
-      While { cond, body } => format!("(while {} {})", cond.accept(self), body.accept(self)),
+      While { cond, body } => {
+        let starting = format!("(while {} ", cond.accept(self));
+        let body = body.accept(self);
+        self.stringify_multi_lines(&starting, &[body], ")")
+      }
     }
   }
 
