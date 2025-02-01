@@ -166,7 +166,8 @@ impl<'src> Parser<'src> {
   }
 
   /// ```
-  /// declaration → varDecl
+  /// declaration → funDecl
+  ///             |  varDecl
   ///             |  statement ;
   /// ```
   pub(crate) fn declaration(&mut self) -> Option<Stmt> {

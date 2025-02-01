@@ -1,5 +1,7 @@
 use super::*;
 
+const MAX_ARGS: usize = u8::MAX as usize;
+
 impl<'src> Parser<'src> {
   /// ```
   /// expression → assignment ;
@@ -168,8 +170,7 @@ impl<'src> Parser<'src> {
   }
 
   /// ```
-  /// unary → ( "!" | "-" ) unary
-  ///       |  primary ;
+  /// unary → ( "!" | "-" ) unary | call ;
   /// ```
   fn unary(&mut self) -> Option<Expr> {
     if self.match_kind_in(&[TokenKind::Bang, TokenKind::Minus]) {
@@ -184,7 +185,58 @@ impl<'src> Parser<'src> {
       .into();
     }
 
-    self.primary()
+    self.call()
+  }
+
+  /// ```
+  /// call → primary ( "(" arguments? ")" )* ;
+  /// ```
+  fn call(&mut self) -> Option<Expr> {
+    let mut expr = self.primary()?;
+
+    loop {
+      if self.match_kind(TokenKind::OpenParen) {
+        expr = self.finish_call(expr.clone())?;
+      } else {
+        break;
+      }
+    }
+
+    Some(expr)
+  }
+
+  /// ```
+  /// arguments → expression ( "," expression )* ;
+  /// ```
+  fn finish_call(&mut self, callee: Expr) -> Option<Expr> {
+    let mut args = vec![];
+
+    if !self.check_kind(TokenKind::CloseParen) {
+      loop {
+        if args.len() >= MAX_ARGS {
+          self.had_parsing_error = true;
+          report_token(
+            self.curr_line,
+            self.peek(),
+            &format!("Cannot have more than {} arguments.", MAX_ARGS),
+          );
+          // TODO: `return None` or `break`?
+          return None;
+        }
+        args.push(self.expression()?);
+        if !self.match_kind(TokenKind::Comma) {
+          break;
+        }
+      }
+    }
+
+    self.consume_by_kind(TokenKind::CloseParen, "Expect ')' after arguments.")?;
+
+    Expr::Call {
+      callee: callee.into(),
+      args,
+    }
+    .into()
   }
 
   /// ```
