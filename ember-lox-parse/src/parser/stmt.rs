@@ -148,7 +148,7 @@ impl<'src> Parser<'src> {
         failed_parsing_decl = true;
       }
     }
-    self.consume_by_kind(TokenKind::CloseBrace, "Expect '}' after block.");
+    self.consume_by_kind(TokenKind::CloseBrace, "Expect '}' after block.")?;
     if !failed_parsing_decl {
       stmts.into()
     } else {
@@ -161,7 +161,7 @@ impl<'src> Parser<'src> {
   /// ```
   fn expr_stmt(&mut self) -> Option<Stmt> {
     let expr = self.expression()?;
-    self.consume_by_kind(TokenKind::Semi, "Expect ';' after expression.");
+    self.consume_by_kind(TokenKind::Semi, "Expect ';' after expression.")?;
     Stmt::Expression { expr }.into()
   }
 
@@ -191,7 +191,7 @@ impl<'src> Parser<'src> {
   /// ```
   fn print_stmt(&mut self) -> Option<Stmt> {
     let expr = self.expression()?;
-    self.consume_by_kind(TokenKind::Semi, "Expect ';' after value.");
+    self.consume_by_kind(TokenKind::Semi, "Expect ';' after value.")?;
     Stmt::Print { expr }.into()
   }
 
@@ -209,7 +209,7 @@ impl<'src> Parser<'src> {
       None
     };
 
-    self.consume_by_kind(TokenKind::Semi, "Expect ';' after variable declaration.");
+    self.consume_by_kind(TokenKind::Semi, "Expect ';' after variable declaration.")?;
     Stmt::Variable {
       name: (name.val, name.tag.line).into(),
       initializer,

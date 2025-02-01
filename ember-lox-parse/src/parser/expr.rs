@@ -247,7 +247,7 @@ impl<'src> Parser<'src> {
     }
     if self.match_kind(TokenKind::OpenParen) {
       let expr = self.expression()?;
-      self.consume_by_kind(TokenKind::CloseParen, "Expect ')' after expression.");
+      self.consume_by_kind(TokenKind::CloseParen, "Expect ')' after expression.")?;
       return Expr::Grouping { expr: expr.into() }.into();
     }
 
