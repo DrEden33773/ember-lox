@@ -6,14 +6,18 @@ use std::env;
 use std::fs;
 
 const TEST_MODE: bool = false;
-const TEST_CMD: &str = "parse";
+const TEST_CMD: &str = "evaluate";
 const TEST_FILENAME: &str = "test.lox";
 
 fn main() {
   let args: Vec<String> = env::args().collect();
   if !TEST_MODE && args.len() < 3 {
-    println!();
-    eprintln!("Usage: <loxc-path> tokenize <filename>\n");
+    eprintln!("Usage: <loxc-path> <Commands> <filename>\n");
+    eprintln!("Commands:");
+    eprintln!("  tokenize   - Tokenize the source code");
+    eprintln!("  parse      - Parse the source code");
+    eprintln!("  run        - Run the source code");
+    eprintln!("  evaluate   - Evaluate the source code");
     return;
   }
 
@@ -32,6 +36,8 @@ fn main() {
     eprintln!("Failed to read file `{}`", filename);
     String::new()
   });
+  // To make everything goes normal, trim the src first.
+  src = src.trim().to_string();
   // `}` cannot followed by `;`
   if matches!(command, "parse" | "evaluate") && !src.ends_with(";") && !src.ends_with("}") {
     // Non-strict mode `REPL` allows the user to omit the semicolon.

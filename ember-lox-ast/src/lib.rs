@@ -38,6 +38,10 @@ pub struct AstPrinter;
 
 impl AstPrinter {
   fn stringify_multi_lines(&mut self, starting: &str, contents: &[String], ending: &str) -> String {
+    if contents.is_empty() {
+      return format!("{}{}", starting, ending);
+    }
+
     let len = contents.len();
     let contents = contents
       .iter()
